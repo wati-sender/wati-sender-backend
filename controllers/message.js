@@ -64,8 +64,13 @@ export const sendBulkMessages = async (req, res) => {
     console.log("Receivers: ", receivers?.length);
     console.log("Accounts: ", allAccounts?.length);
     console.log("Contact Batches: ", contactBatches);
-
-    return;
+    
+    res.status(200).json({
+      success: true,
+      message: "Bulk message processing started.",
+      BATCH_SIZE,
+    });
+    
     // Process each batch
     await Promise.all(
       contactBatches.map((batch) =>
