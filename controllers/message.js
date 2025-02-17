@@ -36,7 +36,8 @@ export const sendBulkMessages = async (req, res) => {
     }
 
     const queue = new PQueue({ concurrency: 1 }); // Only 1 batch sent at a time
-    const BATCH_SIZE = change_account_after_messages; // Number of messages per batch
+    let BATCH_SIZE = receivers?.length / allAccounts?.length; // Number of messages per batch
+    BATCH_SIZE = BATCH_SIZE >= 1 ? Math.ceil(BATCH_SIZE) : 1;
     let successCount = 0;
     let failCount = 0;
     let totalMessagesSent = 0;
@@ -46,6 +47,8 @@ export const sendBulkMessages = async (req, res) => {
 
     console.log("Starting Bulk Message Queue...");
     console.log("Batch Size: ", BATCH_SIZE);
+    console.log("Receivers: ", receivers?.length);
+    console.log("Accounts: ", allAccounts?.length);
 
     // Helper: Split contacts into batches
     const chunkArray = (array, size) =>
@@ -58,6 +61,15 @@ export const sendBulkMessages = async (req, res) => {
 
     // Contact batches
     const contactBatches = chunkArray(receivers, BATCH_SIZE);
+
+    res.status(200).json({
+      success: true,
+      message: "Bulk message processing completed.",
+      successCount,
+      failCount,
+      totalMessagesSent,
+      BATCH_SIZE,
+    });
 
     // Process each batch
     await Promise.all(
@@ -132,17 +144,15 @@ export const sendBulkMessages = async (req, res) => {
 
     await queue.onIdle();
 
-    console.log("Bulk message processing completed.");
-    console.log(
-      `Results: Success: ${successCount}, Failures: ${failCount}, Total Messages: ${totalMessagesSent}`
-    );
-
-    res.status(200).json({
+    console.log({
       message: "Bulk message processing completed.",
       successCount,
       failCount,
       totalMessagesSent,
     });
+    console.log(
+      `Results: Success: ${successCount}, Failures: ${failCount}, Total Messages: ${totalMessagesSent}`
+    );
   } catch (error) {
     console.error("Error in bulk message sending:", error.message);
     res.status(500).json({ message: "Internal server error" });
