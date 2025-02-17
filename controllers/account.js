@@ -85,13 +85,13 @@ export const getAllAccounts = async (req, res) => {
         .json({ total: allAccounts?.length, accounts: allAccounts });
 
     // If account_status is passed rating also required, if rating passed account_status is required.
-    if (
-      (account_status && !quality_rating) ||
-      (!account_status && quality_rating)
-    )
-      return res
-        .status(400)
-        .send("Account status and quality rating both are required.");
+    // if (
+    //   (account_status && !quality_rating) ||
+    //   (!account_status && quality_rating)
+    // )
+    //   return res
+    //     .status(400)
+    //     .send("Account status and quality rating both are required.");
 
     const selectedQualities = quality_rating.split("_");
 
