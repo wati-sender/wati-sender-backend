@@ -69,7 +69,7 @@ export const addBulkAccounts = async (req, res) => {
 
 export const getAllAccounts = async (req, res) => {
   try {
-    const { account_status, quality_rating } = req.query;
+    const { account_status = "", quality_rating = "" } = req.query;
     const allAccounts = await accountModel.find().sort({ createdAt: -1 });
     let connectedAccounts = 0;
     let notConnectedAccounts = 0;
