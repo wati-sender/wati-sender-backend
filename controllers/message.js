@@ -45,11 +45,6 @@ export const sendBulkMessages = async (req, res) => {
     let messagesCount = 0;
     let currentToken;
 
-    console.log("Starting Bulk Message Queue...");
-    console.log("Batch Size: ", BATCH_SIZE);
-    console.log("Receivers: ", receivers?.length);
-    console.log("Accounts: ", allAccounts?.length);
-
     // Helper: Split contacts into batches
     const chunkArray = (array, size) =>
       array.reduce((chunks, _, i) => {
@@ -64,13 +59,21 @@ export const sendBulkMessages = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Bulk message processing completed.",
+      message: "Bulk message processing started.",
       successCount,
       failCount,
       totalMessagesSent,
       BATCH_SIZE,
+      contactBatches: contactBatches,
     });
 
+    console.log("Starting Bulk Message Queue...");
+    console.log("Batch Size: ", BATCH_SIZE);
+    console.log("Receivers: ", receivers?.length);
+    console.log("Accounts: ", allAccounts?.length);
+    console.log("Contact Batches: ", contactBatches);
+
+    return;
     // Process each batch
     await Promise.all(
       contactBatches.map((batch) =>
