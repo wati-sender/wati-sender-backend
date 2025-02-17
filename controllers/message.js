@@ -60,11 +60,7 @@ export const sendBulkMessages = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Bulk message processing started.",
-      successCount,
-      failCount,
-      totalMessagesSent,
       BATCH_SIZE,
-      contactBatches: contactBatches,
     });
 
     console.log("Starting Bulk Message Queue...");
