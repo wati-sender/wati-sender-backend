@@ -124,13 +124,17 @@ export const getAllAccounts = async (req, res) => {
                 notConnectedAccounts++;
               }
 
+              // Filter accounts based on selected status and quality rating
               if (
-                selectedAccountStatuses.includes(accountStatus?.status) &&
-                selectedQualities.includes(accountStatus?.qualityRating)
+                (selectedAccountStatuses?.length > 0 &&
+                  selectedAccountStatuses.includes(accountStatus?.status)) ||
+                (selectedQualities?.length > 0 &&
+                  selectedQualities.includes(accountStatus?.qualityRating))
               ) {
-                // If filtered are matched push in the filtered accounts
+                // If filtered are matched, push the account into filteredAccounts
                 filteredAccounts.push(account);
               }
+
               allVerificationsCount++;
 
               // Update status in db as well
