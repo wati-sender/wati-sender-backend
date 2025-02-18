@@ -6,9 +6,9 @@ import { getAccountStatus, loginAndGetToken } from "./auth.js";
 export const addBulkAccounts = async (req, res) => {
   try {
     const { accounts } = req.body;
-    const inserted = [];
-    const failed = [];
-    const exist = [];
+    let inserted = 0;
+    let failed = 0;
+    let exist = 0;
     if (!accounts || accounts.length === 0) {
       return res.status(400).json({ message: "Accounts are required" });
     }
@@ -28,38 +28,48 @@ export const addBulkAccounts = async (req, res) => {
         loginUrl,
       }); //   If not exist add new contact
       console.log("Existing Account: ", existingAccount);
-      if (!existingAccount) {
-        const token = await loginAndGetToken(username, password, client_id);
-        console.log("Token: ", token);
-        const newAccount = new accountModel({
-          name,
-          phone,
-          username,
-          password,
-          loginUrl,
-          token: token || "",
-        });
+      try {
+        if (!existingAccount) {
+          const token = await loginAndGetToken(username, password, client_id);
+          console.log("Token: ", token);
 
-        await newAccount.save();
-        if (!newAccount) {
-          failed.push(index);
+          if (token) {
+            const newAccount = new accountModel({
+              name,
+              phone,
+              username,
+              password,
+              loginUrl,
+              token: token || null,
+            });
+
+            await newAccount.save();
+            if (!newAccount) {
+              failed++;
+            } else {
+              inserted++;
+            }
+          } else {
+            failed++;
+          }
         } else {
-          inserted.push(index);
+          exist++;
         }
-      } else {
-        exist.push(index);
+      } catch (err) {
+        console.log("Error while adding account: ", err);
+        failed++;
       }
     });
 
     return res.status(200).json({
       status: true,
       message:
-        exist?.length === accounts?.length
+        exist === accounts?.length
           ? "All accounts are already exists"
           : "Bulk accounts added successfully",
-      inserted: inserted.length,
-      exist: exist.length,
-      failed: failed.length,
+      inserted,
+      exist,
+      failed,
     });
   } catch (error) {
     console.log("Add Bulk Accounts Error: ", error);
@@ -160,5 +170,72 @@ export const getAllAccounts = async (req, res) => {
   } catch (error) {
     console.log("Get All Accounts Error: ", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const deleteSingleAccount = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please provide userId" });
+    }
+
+    // Permanently delete the account
+    const deletedAccount = await accountModel.findByIdAndDelete(userId);
+
+    if (!deletedAccount) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Account not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Account deleted successfully",
+    });
+  } catch (error) {
+    console.error("Single account delete error: ", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete account",
+      error: error.message,
+    });
+  }
+};
+
+export const deleteMultipleAccounts = async (req, res) => {
+  try {
+    const { userIds } = req.body; // Expecting an array of userIds
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please provide valid userIds array" });
+    }
+
+    // Permanently delete all accounts with matching userIds
+    const result = await accountModel.deleteMany({ _id: { $in: userIds } });
+
+    if (result.deletedCount === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No accounts found to delete" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Accounts deleted successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Multiple account delete error: ", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete accounts",
+      error: error.message,
+    });
   }
 };
