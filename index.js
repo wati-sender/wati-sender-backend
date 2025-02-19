@@ -8,6 +8,7 @@ import ContactRoutes from "./routes/contact.js";
 import AccountRoutes from "./routes/account.js";
 import MessagesRoutes from "./routes/messages.js";
 import StatisticsRoutes from "./routes/statistics.js";
+import ReportsRoutes from "./routes/reports.js";
 
 dotenv.config();
 
@@ -26,7 +27,8 @@ app.use("/templates", TemplateRoutes);
 app.use("/contacts", ContactRoutes);
 app.use("/accounts", AccountRoutes);
 app.use("/messages", MessagesRoutes);
-app.use("/statistics", StatisticsRoutes)
+app.use("/statistics", StatisticsRoutes);
+app.use("/reports", ReportsRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);

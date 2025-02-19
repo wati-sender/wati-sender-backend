@@ -2,16 +2,18 @@ import PQueue from "p-queue";
 import accountModel from "../models/account.model.js";
 import { asyncForEach } from "../utils/common.js";
 import { getAccountStatus, loginAndGetToken } from "./auth.js";
+import accountsReportModel from "../models/accountsReport.model.js";
 
 export const addBulkAccounts = async (req, res) => {
   try {
     const { accounts } = req.body;
-    let inserted = 0;
-    let failed = 0;
-    let exist = 0;
+    const insertedUsernames = [];
+    const failedUserNames = [];
+    const existUserNames = [];
     if (!accounts || accounts.length === 0) {
       return res.status(400).json({ message: "Accounts are required" });
     }
+
     await asyncForEach(accounts, async (data, index) => {
       const { name, phone, username, password, loginUrl } = data;
 
@@ -45,31 +47,41 @@ export const addBulkAccounts = async (req, res) => {
 
             await newAccount.save();
             if (!newAccount) {
-              failed++;
+              failedUserNames.push(username);
             } else {
-              inserted++;
+              insertedUsernames.push(username);
             }
           } else {
-            failed++;
+            failedUserNames.push(username);
           }
         } else {
-          exist++;
+          existUserNames.push(username);
         }
       } catch (err) {
         console.log("Error while adding account: ", err);
-        failed++;
+        failedUserNames.push(username);
       }
     });
+
+    const accountReport = new accountsReportModel({
+      total: accounts?.length,
+      inserted: insertedUsernames,
+      exist: existUserNames,
+      failed: failedUserNames,
+    });
+
+    // Save account report
+    await accountReport.save();
 
     return res.status(200).json({
       status: true,
       message:
-        exist === accounts?.length
+        existUserNames?.length === accounts?.length
           ? "All accounts are already exists"
           : "Bulk accounts added successfully",
-      inserted,
-      exist,
-      failed,
+      insertedUsernames,
+      failedUserNames,
+      existUserNames,
     });
   } catch (error) {
     console.log("Add Bulk Accounts Error: ", error);
@@ -211,9 +223,10 @@ export const deleteMultipleAccounts = async (req, res) => {
     const { userIds } = req.body; // Expecting an array of userIds
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Please provide valid userIds array" });
+      return res.status(400).json({
+        success: false,
+        message: "Please provide valid userIds array",
+      });
     }
 
     // Permanently delete all accounts with matching userIds

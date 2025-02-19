@@ -1,6 +1,7 @@
 import axios from "axios";
 import accountModel from "../models/account.model.js";
 import PQueue from "p-queue";
+import templatesReportsModel from "../models/templatesReports.model.js";
 
 // For creating single template
 export const createTemplate = async (req, res) => {
@@ -177,10 +178,11 @@ export const createTemplateInAllAccounts = async (req, res) => {
     const queue = new PQueue({ concurrency: 5 });
 
     // Counters for success, failures, and review
-    let successCount = 0;
-    let failCount = 0;
-    let reviewFailCount = 0;
-    let reviewSuccessCount = 0;
+    const createSuccessUserNames = [];
+    const createFailedUserNames = [];
+    const reviewSuccessTempUsernames = [];
+    const reviewFailUserNames = [];
+
     console.log("Selected accounts: ", accounts);
     console.log("Queue started");
     const accountsCreatedInOneMinute = 12;
@@ -218,7 +220,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
               console.log("REsponse: ", response);
               if (response.success) {
                 // If template create success
-                successCount++;
+                createSuccessUserNames.push(account.username);
                 console.log(
                   `Template created successfully for ${account.username}`
                 );
@@ -235,7 +237,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
                 console.log("Review Submit Response: ", submitResponse);
                 // If review submission fail
                 if (!submitResponse?.data?.ok) {
-                  reviewFailCount++;
+                  reviewFailUserNames.push(account.username);
                   console.error(
                     `Template review failed for ${account.username}`
                   );
@@ -244,25 +246,28 @@ export const createTemplateInAllAccounts = async (req, res) => {
                   console.log(
                     `Template review submitted successfully for ${account.username}`
                   );
-                  reviewSuccessCount++;
+                  reviewSuccessTempUsernames.push(account.username);
                 }
               } else {
                 // If template create fails
-                failCount++;
+                createFailedUserNames.push(account.username);
+                reviewFailUserNames.push(account.username);
                 console.error(
                   `Failed to create template for ${account.username}: ${response.error}`
                 );
               }
             } else {
               // If Login fail
-              failCount++;
+              createFailedUserNames.push(account.username);
+              reviewFailUserNames.push(account.username);
               console.error(
                 `Skipping template creation for ${account.username} due to login failure.`
               );
             }
           } catch (error) {
             console.log("Error: ", error);
-            failCount++;
+            createFailedUserNames.push(account.username);
+            reviewFailUserNames.push(account.username);
             console.error(
               `Error processing ${account.username}: ${error.message}`
             );
@@ -273,19 +278,22 @@ export const createTemplateInAllAccounts = async (req, res) => {
 
     await queue.onIdle();
 
+    // Save template report
+    const templateCreateBulkReport = new templatesReportsModel({
+      totalAccounts: accounts?.length,
+      success: createSuccessUserNames,
+      failed: createFailedUserNames,
+      submitForReview: reviewSuccessTempUsernames,
+      reviewSubmitFailed: reviewFailUserNames,
+    });
+
+    // Save template report
+    await templateCreateBulkReport.save();
+
     console.log("All accounts processed.");
     console.log(
-      `Success: ${successCount}, Failures: ${failCount}, Review Failures: ${reviewFailCount}, Review Success: ${reviewSuccessCount}`
+      `Success: ${createSuccessUserNames.length}, Failures: ${createFailedUserNames.length}, Review Failures: ${reviewFailUserNames.length}, Review Success: ${reviewSuccessTempUsernames.length} `
     );
-
-    // Send a response back with counts
-    // res.status(200).json({
-    //   message: "All accounts processed.",
-    //   successCount,
-    //   failCount,
-    //   reviewFailCount,
-    //   reviewSuccessCount,
-    // });
   } catch (error) {
     console.error("Bulk Template Create Error: ", error);
     res.status(500).json({
