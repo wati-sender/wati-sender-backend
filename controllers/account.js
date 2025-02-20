@@ -100,12 +100,6 @@ export const getAllAccounts = async (req, res) => {
     const errors = [];
     const filteredAccounts = [];
 
-    // If not filter applied send all accounts
-    if (!account_status && !quality_rating)
-      return res
-        .status(200)
-        .json({ total: allAccounts?.length, accounts: allAccounts });
-
     // If account_status is passed rating also required, if rating passed account_status is required.
     // if (
     //   (account_status && !quality_rating) ||
@@ -146,15 +140,37 @@ export const getAllAccounts = async (req, res) => {
                 notConnectedAccounts++;
               }
 
-              // Filter accounts based on selected status and quality rating
-              if (
-                (selectedAccountStatuses?.length > 0 &&
-                  selectedAccountStatuses.includes(accountStatus?.status)) ||
-                (selectedQualities?.length > 0 &&
-                  selectedQualities.includes(accountStatus?.qualityRating))
-              ) {
-                // If filtered are matched, push the account into filteredAccounts
-                filteredAccounts.push(account);
+              // If not filter applied send all accounts
+              if (!account_status && !quality_rating) {
+                console.log("STATUS: ", accountStatus);
+                filteredAccounts?.push({
+                  status: accountStatus?.status,
+                  quality_rating: accountStatus?.qualityRating,
+                  name: account?.name,
+                  username: account?.username,
+                  loginUrl: account?.loginUrl,
+                  password: account?.password,
+                  phone: account?.phone,
+                });
+              } else {
+                // Filter accounts based on selected status and quality rating
+                if (
+                  (selectedAccountStatuses?.length > 0 &&
+                    selectedAccountStatuses.includes(accountStatus?.status)) ||
+                  (selectedQualities?.length > 0 &&
+                    selectedQualities.includes(accountStatus?.qualityRating))
+                ) {
+                  // If filtered are matched, push the account into filteredAccounts
+                  filteredAccounts?.push({
+                    status: accountStatus?.status,
+                    quality_rating: accountStatus?.qualityRating,
+                    name: account?.name,
+                    username: account?.username,
+                    loginUrl: account?.loginUrl,
+                    password: account?.password,
+                    phone: account?.phone,
+                  });
+                }
               }
 
               allVerificationsCount++;
@@ -173,9 +189,6 @@ export const getAllAccounts = async (req, res) => {
 
     return res.status(200).json({
       total: filteredAccounts?.length,
-      connectedAccounts,
-      notConnectedAccounts,
-      allVerificationsCount,
       errors,
       accounts: filteredAccounts,
     });
