@@ -2,6 +2,8 @@ import axios from "axios";
 import accountModel from "../models/account.model.js";
 import PQueue from "p-queue";
 import templatesReportsModel from "../models/templatesReports.model.js";
+import { isValidObjectId } from "mongoose";
+import { asyncForEach } from "../utils/common.js";
 
 // For creating single template
 export const createTemplate = async (req, res) => {
@@ -280,6 +282,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
 
     // Save template report
     const templateCreateBulkReport = new templatesReportsModel({
+      templateName: templateData?.elementName,
       totalAccounts: accounts?.length,
       success: createSuccessUserNames,
       failed: createFailedUserNames,
@@ -298,6 +301,98 @@ export const createTemplateInAllAccounts = async (req, res) => {
     console.error("Bulk Template Create Error: ", error);
     res.status(500).json({
       message: "An error occurred while processing accounts.",
+      error: error.message,
+    });
+  }
+};
+
+// Get review status, based on accounts.
+
+export const getTemplateReviewStatus = async (req, res) => {
+  try {
+    const { reportId } = req.body;
+
+    if (!reportId)
+      return res.json({ success: false, message: "Please provide reportId" });
+
+    if (!isValidObjectId(reportId))
+      return res.json({ success: false, message: "Given ID is not valid" });
+
+    // Need usernames to get status in that account.
+    const report = await templatesReportsModel.findById(reportId);
+
+    if (!report) {
+      return res.json({
+        success: false,
+        message: "Report not found for given ID",
+      });
+    }
+
+    // All usernames (Selected for bulk template create);
+    const usernames = [...report.success, ...report.failed];
+
+    // Get account from DB to get token of that account.
+    const accounts = await accountModel.find({ username: { $in: usernames } });
+
+    // Status result
+    const result = [];
+
+    await asyncForEach(accounts, async (data, index) => {
+      const { name, phone, username, password, loginUrl, token } = data;
+
+      const client_id = loginUrl.split("/")[3];
+
+      const { data: responseData } = await axios.post(
+        `${process.env.WATI_API_URL}/${client_id}/api/v1/templates`,
+        {
+          searchString: report.templateName,
+          sortBy: 0,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            accept: "*/*",
+          },
+        }
+      );
+
+      console.log("Template get status response: ", responseData);
+
+      if (responseData?.ok) {
+        console.log("Wend Inside");
+        // Getting exact item from an array of found templates
+        const template = responseData?.result?.items?.find(
+          (temp) => temp?.elementName === report.templateName
+        );
+        console.log("Found template: ", template);
+        if (template) {
+          result.push({
+            submitForReview: report.submitForReview?.includes(data?.username),
+            reviewStatus: template?.status,
+            templateName: report?.templateName,
+            accountName: data?.name,
+            userName: data?.username,
+            phone: data?.phone,
+          });
+        }
+      }
+
+      try {
+      } catch (err) {
+        console.log("Error while getting template status: ", err);
+      }
+    });
+    res.status(200).json({
+      success: true,
+      total: result.length,
+      data: result,
+    });
+
+    // Get all status from wati side
+  } catch (error) {
+    console.error("Template status get Error: ", error);
+    res.status(500).json({
+      message: "An error occurred while getting status.",
       error: error.message,
     });
   }
