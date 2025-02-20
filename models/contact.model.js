@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const contactSchema = new mongoose.Schema(
   {
+    name: {
+      type: String,
+      required: false,
+    },
     phone: {
       type: String,
       required: true,
