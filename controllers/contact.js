@@ -1,3 +1,4 @@
+import { isValidObjectId } from "mongoose";
 import contactModel from "../models/contact.model.js";
 import { asyncForEach } from "../utils/common.js";
 
@@ -85,5 +86,75 @@ export const getAllContacts = async (req, res) => {
   } catch (error) {
     console.log("Get All Contacts Error: ", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Delete single contact
+export const deleteSingleContact = async (req, res) => {
+  try {
+    const { contact_id } = req.body;
+
+    if (!isValidObjectId(contact_id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please provide valid contact_id" });
+    }
+
+    // Permanently delete the account
+    const deletedContact = await contactModel.findByIdAndDelete(contact_id);
+
+    if (!deletedContact) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Contact not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Contact deleted successfully",
+    });
+  } catch (error) {
+    console.error("Single contact delete error: ", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete contact",
+      error: error.message,
+    });
+  }
+};
+
+// Delete multiple contacts
+export const deleteMultipleContacts = async (req, res) => {
+  try {
+    const { contact_ids } = req.body; // Expecting an array of contact_ids
+
+    if (!Array.isArray(contact_ids) || contact_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide valid contact_ids array",
+      });
+    }
+
+    // Permanently delete all accounts with matching userIds
+    const result = await contactModel.deleteMany({ _id: { $in: contact_ids } });
+    console.log("_result", result);
+    if (result.deletedCount === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No contacts found to delete" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} contacts are deleted successfully.`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Multiple contacts delete error: ", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete contacts",
+      error: error.message,
+    });
   }
 };
