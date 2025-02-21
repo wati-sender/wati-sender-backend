@@ -151,6 +151,7 @@ export const getAllAccounts = async (req, res) => {
                   loginUrl: account?.loginUrl,
                   password: account?.password,
                   phone: account?.phone,
+                  _id: account?._id
                 });
               } else {
                 // Filter accounts based on selected status and quality rating
@@ -169,6 +170,7 @@ export const getAllAccounts = async (req, res) => {
                     loginUrl: account?.loginUrl,
                     password: account?.password,
                     phone: account?.phone,
+                    _id: account?._id
                   });
                 }
               }
