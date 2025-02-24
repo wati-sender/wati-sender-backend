@@ -1,6 +1,9 @@
 import PQueue from "p-queue";
 import axios from "axios";
 import accountModel from "../models/account.model.js";
+import campaignModel from "../models/campaign.model.js";
+import { isValidObjectId } from "mongoose";
+import { getEndOfTodayUTC } from "../utils/common.js";
 
 export const sendBulkMessages = async (req, res) => {
   try {
@@ -24,6 +27,12 @@ export const sendBulkMessages = async (req, res) => {
     )
       return res.status(400).send("Account ids and receivers are required");
 
+    // If broadcast name already exist throw an error.
+    const campaign = await campaignModel.findOne({ name: broadcast_name });
+    if (campaign) {
+      return res.status(400).send("Campaign with given name already exist.");
+    }
+
     const allAccounts = await accountModel.find({ _id: { $in: account_ids } }); // Accounts filtered by account ids
     console.log(
       "Selected Accounts: ",
@@ -44,6 +53,7 @@ export const sendBulkMessages = async (req, res) => {
     let currentAccountIndex = 0;
     let messagesCount = 0;
     let currentToken;
+    const errors = []; // All errors
 
     // Helper: Split contacts into batches
     const chunkArray = (array, size) =>
@@ -57,20 +67,18 @@ export const sendBulkMessages = async (req, res) => {
     // Contact batches
     const contactBatches = chunkArray(receivers, BATCH_SIZE);
 
-
-
     console.log("Starting Bulk Message Queue...");
     console.log("Batch Size: ", BATCH_SIZE);
     console.log("Receivers: ", receivers?.length);
     console.log("Accounts: ", allAccounts?.length);
     console.log("Contact Batches: ", contactBatches);
-    
+
     res.status(200).json({
       success: true,
       message: "Bulk message processing started.",
       BATCH_SIZE,
     });
-    
+
     // Process each batch
     await Promise.all(
       contactBatches.map((batch) =>
@@ -115,6 +123,11 @@ export const sendBulkMessages = async (req, res) => {
               successCount += batch.length;
             } else {
               failCount += batch.length;
+              errors.push({
+                username: currentAccount.username,
+                name: currentAccount?.name,
+                error: response?.data?.error,
+              });
             }
             messagesCount += batch.length;
             totalMessagesSent += batch.length;
@@ -144,6 +157,19 @@ export const sendBulkMessages = async (req, res) => {
 
     await queue.onIdle();
 
+    // Add new campaign entry
+    const newCampaign = new campaignModel({
+      name: broadcast_name,
+      totalContacts: receivers?.length,
+      selectedAccounts: allAccounts?.map((acc) => acc?._id),
+      selectedTemplateName: template_name,
+      successCount,
+      failedCount: failCount,
+      errors,
+    });
+
+    await newCampaign.save();
+
     console.log({
       message: "Bulk message processing completed.",
       successCount,
@@ -156,5 +182,100 @@ export const sendBulkMessages = async (req, res) => {
   } catch (error) {
     console.error("Error in bulk message sending:", error.message);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getAllCampaigns = async (req, res) => {
+  try {
+    const campaigns = await campaignModel
+      .find()
+      .populate("selectedAccounts", "-token")
+      .sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, campaigns });
+  } catch (error) {
+    console.log("All campaigns get error: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get campaign by id
+export const getCampaignByID = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const campaign = await campaignModel
+      .findById(campaignId)
+      .sort({ createdAt: -1 })
+      .populate("selectedAccounts", "-token");
+
+    return res.status(200).json({ success: true, campaign });
+  } catch (error) {
+    console.log("Get all campaign error: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get campaign statistics for particular account
+export const getCampaignReportByAccount = async (req, res) => {
+  try {
+    const { campaignId, accountId } = req.body;
+    if (
+      !campaignId ||
+      !isValidObjectId(campaignId) ||
+      !accountId ||
+      !isValidObjectId(accountId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide valid campaignId and accountId",
+      });
+    }
+
+    const campaign = await campaignModel.findById(campaignId);
+
+    if (!campaign) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Campaign not found with given ID" });
+    }
+
+    const account = await accountModel.findById(accountId);
+
+    const client_id = account?.loginUrl.split("/")[3];
+    console.log("DATE", getEndOfTodayUTC());
+    const campaignStatsResponse = await axios.post(
+      `${process.env.WATI_API_URL}/${client_id}/api/v1/broadcast/getBroadcastsOverview`,
+      {
+        dateFrom: "2025-02-24T00:00:00.000Z",
+        dateTo: getEndOfTodayUTC(),
+        searchString: "test_22",
+        sortBy: 0,
+        filterStatus: [],
+        pageSize: 5,
+        pageNumber: 0,
+      },
+      { headers: { Authorization: `Bearer ${account?.token}` } }
+    );
+
+    if (!campaignStatsResponse.data?.ok) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Failed to get campaign statistics" });
+    }
+    const campaignStats = campaignStatsResponse?.data?.result;
+    console.log("Campaign Statistics: ", campaignStats);
+    return res.status(200).json({
+      success: true,
+      account: {
+        _id: account?._id,
+        name: account?.name,
+        phone: account?.phone,
+        username: account?.username,
+      },
+      statistics: campaignStats,
+    });
+    res.status(200).send("Suc");
+  } catch (error) {
+    console.log("Campaign account report error: ", error.message);
+    res.status(400).json({ success: false, error: error.message });
   }
 };
