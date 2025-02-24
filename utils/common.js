@@ -12,3 +12,9 @@ export const asyncForEach = async (array, callback) => {
     await callback(array[index], index, array);
   }
 };
+
+export const getEndOfTodayUTC = () => {
+  const today = new Date();
+  today.setUTCHours(23, 59, 59, 0); // Set time to 23:59:59.000 UTC
+  return today.toISOString();
+};
