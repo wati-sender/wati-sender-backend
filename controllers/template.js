@@ -4,6 +4,7 @@ import PQueue from "p-queue";
 import templatesReportsModel from "../models/templatesReports.model.js";
 import { isValidObjectId } from "mongoose";
 import { asyncForEach } from "../utils/common.js";
+import templateModel from "../models/template.model.js";
 
 // For creating single template
 export const createTemplate = async (req, res) => {
@@ -76,31 +77,36 @@ export const createTemplate = async (req, res) => {
 // Function to get all templates of user
 export const getAllTemplates = async (req, res) => {
   try {
-    const token = req.headers.authorization;
-    const client_id = req.params.client_id;
+    // const token = req.headers.authorization;
+    // const client_id = req.params.client_id;
 
-    if (!token || !client_id) {
-      return res
-        .status(401)
-        .json({ error: "Authorization token or client id is missing" });
-    }
-    const response = await axios.get(
-      `${process.env.WATI_API_URL}/${client_id}/api/v1/getMessageTemplates?pageSize=100&pageNumber=1`,
-      {
-        headers: {
-          accept: "*/*",
-          Authorization: token,
-        },
-      }
-    );
+    // if (!token || !client_id) {
+    //   return res
+    //     .status(401)
+    //     .json({ error: "Authorization token or client id is missing" });
+    // }
+    // const response = await axios.get(
+    //   `${process.env.WATI_API_URL}/${client_id}/api/v1/getMessageTemplates?pageSize=100&pageNumber=1`,
+    //   {
+    //     headers: {
+    //       accept: "*/*",
+    //       Authorization: token,
+    //     },
+    //   }
+    // );
 
-    if (response?.data?.result !== "success") {
-      return res.status(500).send("Failed to get templates");
-    }
+    // if (response?.data?.result !== "success") {
+    //   return res.status(500).send("Failed to get templates");
+    // }
+
+    const templates = await templateModel
+      .find()
+      .select("-accountsToAdd")
+      .sort({ createdAt: -1 });
 
     return res.status(200).json({
-      total: response?.data?.messageTemplates?.length,
-      templates: response?.data?.messageTemplates,
+      total: templates?.length,
+      templates,
     });
   } catch (error) {
     console.log("Get All Templates Error: ", error);
@@ -159,9 +165,22 @@ export const createTemplateInAllAccounts = async (req, res) => {
         .send("Start account index and End account index are required");
 
     if (startAccountIndex > endAccountIndex)
-      return res
-        .status(400)
-        .send("End account index must be greater than start index");
+      return res.status(400).json({
+        success: false,
+        message: "End account index must be greater than start index",
+      });
+
+    // If template in our db is present
+    const isExist = await templateModel.findOne({
+      name: templateData?.elementName,
+    });
+
+    if (isExist) {
+      return res.status(400).json({
+        success: false,
+        message: "Template name already exist",
+      });
+    }
 
     const allAccounts = await accountModel.find().sort({ createdAt: -1 });
     const accounts = allAccounts?.filter(
@@ -290,6 +309,16 @@ export const createTemplateInAllAccounts = async (req, res) => {
       reviewSubmitFailed: reviewFailUserNames,
     });
 
+    // New template entry.
+    const template = new templateModel({
+      name: templateData?.elementName,
+      accountsToAdd: accounts?.map((acc) => acc._id),
+      failedCount: createSuccessUserNames?.length,
+      successCount: createFailedUserNames?.length,
+    });
+
+    await template.save();
+
     // Save template report
     await templateCreateBulkReport.save();
 
@@ -382,6 +411,7 @@ export const getTemplateReviewStatus = async (req, res) => {
         console.log("Error while getting template status: ", err);
       }
     });
+
     res.status(200).json({
       success: true,
       total: result.length,
@@ -396,4 +426,79 @@ export const getTemplateReviewStatus = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+// Get templates details by id
+
+export const templateById = async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const template = await templateModel.findById(templateId);
+
+    // Report
+    const report = await templatesReportsModel.findOne({
+      templateName: template?.name,
+    });
+
+    // All usernames (Selected for bulk template create);
+    const usernames = [...report.success, ...report.failed];
+
+    // Get account from DB to get token of that account.
+    const accounts = await accountModel.find({ username: { $in: usernames } });
+
+    // Status result
+    const result = [];
+
+    await asyncForEach(accounts, async (data, index) => {
+      const { name, phone, username, password, loginUrl, token } = data;
+
+      const client_id = loginUrl.split("/")[3];
+
+      const { data: responseData } = await axios.post(
+        `${process.env.WATI_API_URL}/${client_id}/api/v1/templates`,
+        {
+          searchString: report.templateName,
+          sortBy: 0,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            accept: "*/*",
+          },
+        }
+      );
+
+      console.log("Template get status response: ", responseData);
+
+      if (responseData?.ok) {
+        console.log("Wend Inside");
+        // Getting exact item from an array of found templates
+        const template = responseData?.result?.items?.find(
+          (temp) => temp?.elementName === report.templateName
+        );
+        console.log("Found template: ", template);
+        if (template) {
+          result.push({
+            templateName: report?.templateName,
+            accountName: data?.name,
+            userName: data?.username,
+            submitForReview: report.submitForReview?.includes(data?.username),
+            isCreated: report?.success?.includes(data?.username),
+            reviewStatus: template?.status,
+            phone: data?.phone,
+          });
+        }
+      }
+
+      try {
+      } catch (err) {
+        console.log("Error while getting template status: ", err);
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {}
 };
