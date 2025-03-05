@@ -313,8 +313,8 @@ export const createTemplateInAllAccounts = async (req, res) => {
     const template = new templateModel({
       name: templateData?.elementName,
       accountsToAdd: accounts?.map((acc) => acc._id),
-      failedCount: createSuccessUserNames?.length,
-      successCount: createFailedUserNames?.length,
+      failedCount: createFailedUserNames?.length,
+      successCount: createSuccessUserNames?.length
     });
 
     await template.save();
