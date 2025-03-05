@@ -5,6 +5,7 @@ import templatesReportsModel from "../models/templatesReports.model.js";
 import { isValidObjectId } from "mongoose";
 import { asyncForEach } from "../utils/common.js";
 import templateModel from "../models/template.model.js";
+import watiTemplatesIdsModel from "../models/watiTemplatesIds.model.js";
 
 // For creating single template
 export const createTemplate = async (req, res) => {
@@ -313,33 +314,42 @@ export const createTemplateInAllAccounts = async (req, res) => {
                   `Template created successfully for ${account.username}`
                 );
 
+                // Template data to send for review
+
+                const newTempEntry = new watiTemplatesIdsModel({
+                  accountId: account?._id,
+                  watiTemplateId: response?.data?.result?.id,
+                  templateName: templateData?.elementName,
+                });
+
+                await newTempEntry.save();
+
                 // Request for review
-                const submitResponse = await axios.get(
-                  `${process.env.WATI_API_URL}/${client_id}/api/v1/templates/submit/${response?.data?.result?.id}`,
-                  {
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                    },
-                  }
-                );
-                console.log("Review Submit Response: ", submitResponse.data);
-                // If review submission fail
-                if (!submitResponse?.data?.ok) {
-                  reviewFailUserNames.push(account.username);
-                  console.error(
-                    `Template review failed for ${account.username}`
-                  );
-                } else {
-                  // If sent for review success
-                  console.log(
-                    `Template review submitted successfully for ${account.username}`
-                  );
-                  reviewSuccessTempUsernames.push(account.username);
-                }
+                // const submitResponse = await axios.get(
+                //   `${process.env.WATI_API_URL}/${client_id}/api/v1/templates/submit/${response?.data?.result?.id}`,
+                //   {
+                //     headers: {
+                //       Authorization: `Bearer ${token}`,
+                //     },
+                //   }
+                // );
+                // console.log("Review Submit Response: ", submitResponse.data);
+                // // If review submission fail
+                // if (!submitResponse?.data?.ok) {
+                //   reviewFailUserNames.push(account.username);
+                //   console.error(
+                //     `Template review failed for ${account.username}`
+                //   );
+                // } else {
+                //   // If sent for review success
+                //   console.log(
+                //     `Template review submitted successfully for ${account.username}`
+                //   );
+                //   reviewSuccessTempUsernames.push(account.username);
+                // }
               } else {
                 // If template create fails
                 createFailedUserNames.push(account.username);
-                reviewFailUserNames.push(account.username);
                 console.error(
                   `Failed to create template for ${account.username}: ${response.error}`
                 );
@@ -347,7 +357,6 @@ export const createTemplateInAllAccounts = async (req, res) => {
             } else {
               // If Login fail
               createFailedUserNames.push(account.username);
-              reviewFailUserNames.push(account.username);
               console.error(
                 `Skipping template creation for ${account.username} due to login failure.`
               );
@@ -355,7 +364,6 @@ export const createTemplateInAllAccounts = async (req, res) => {
           } catch (error) {
             console.log("Error: ", error);
             createFailedUserNames.push(account.username);
-            reviewFailUserNames.push(account.username);
             console.error(
               `Error processing ${account.username}: ${error.message}`
             );
@@ -372,8 +380,6 @@ export const createTemplateInAllAccounts = async (req, res) => {
       totalAccounts: accounts?.length,
       success: createSuccessUserNames,
       failed: createFailedUserNames,
-      submitForReview: reviewSuccessTempUsernames,
-      reviewSubmitFailed: reviewFailUserNames,
     });
 
     // New template entry.
@@ -391,7 +397,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
 
     console.log("All accounts processed.");
     console.log(
-      `Success: ${createSuccessUserNames.length}, Failures: ${createFailedUserNames.length}, Review Failures: ${reviewFailUserNames.length}, Review Success: ${reviewSuccessTempUsernames.length} `
+      `Success: ${createSuccessUserNames.length}, Failures: ${createFailedUserNames.length} `
     );
   } catch (error) {
     console.error("Bulk Template Create Error: ", error);
@@ -568,4 +574,78 @@ export const templateById = async (req, res) => {
       data: result,
     });
   } catch (error) {}
+};
+
+// Controller to send template for review in accounts accordingly
+export const submitTemplateForReview = async (req, res) => {
+  try {
+    const { template_name } = req.body;
+
+    if (!template_name)
+      return res.json({
+        success: false,
+        message: "Please enter template_name",
+      });
+
+    const template = await templateModel.findOne({ name: template_name });
+
+    let sentSuccess = 0;
+    let sentFail = 0;
+
+    if (!template)
+      return res.json({
+        success: false,
+        message: "Template not found with given name.",
+      });
+
+    // Getting wati template ids to send for review
+    const watiIds = await watiTemplatesIdsModel.find({
+      templateName: template_name,
+    });
+
+    res.json({
+      success: true,
+      templates: `Template sent for review for ${watiIds.length} accounts.`,
+    });
+    // Create a queue with a concurrency limit (e.g., 5 requests at a time)
+    const queue = new PQueue();
+
+    await Promise.all(
+      watiIds.map((tempInfo) =>
+        queue.add(async () => {
+          try {
+            const account = await accountModel.findById(tempInfo.accountId);
+
+            const client_id = account?.loginUrl?.split("/")[3];
+            const token = account.token;
+
+            const submitResponse = await axios.get(
+              `${process.env.WATI_API_URL}/${client_id}/api/v1/templates/submit/${tempInfo.watiTemplateId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+
+            if (!submitResponse?.data?.ok) {
+              sentFail++;
+              console.error(`Template review failed for ${account.username}`);
+            } else {
+              // If sent for review success
+              console.log(
+                `Template review submitted successfully for ${account.username}`
+              );
+              sentSuccess++;
+            }
+          } catch (error) {
+            console.log("Error while submitting template for review: ", error);
+          }
+        })
+      )
+    );
+  } catch (error) {
+    console.log("Template Review Submit Error: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
