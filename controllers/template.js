@@ -217,12 +217,12 @@ export const createTemplateInAllAccounts = async (req, res) => {
       waitTimeInMinutes = 1;
     }
 
-    res.status(200).json({
-      success: true,
-      message: `Template creation has been started, Please wait for ${waitTimeInMinutes.toFixed(
-        2
-      )} minutes.`,
-    });
+    // res.status(200).json({
+    //   success: true,
+    //   message: `Template creation has been started, Please wait for ${waitTimeInMinutes.toFixed(
+    //     2
+    //   )} minutes.`,
+    // });
 
     await Promise.all(
       accounts.map((account) =>
