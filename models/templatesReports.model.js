@@ -15,15 +15,7 @@ const templatesReportSchema = new mongoose.Schema(
     },
     totalAccounts: {
       type: Number,
-    },
-    submitForReview: {
-      type: [String],
-      default: [],
-    },
-    reviewSubmitFailed: {
-      type: [String],
-      default: [],
-    },
+    }
   },
   { timestamps: true }
 );
