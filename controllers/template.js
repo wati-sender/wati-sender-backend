@@ -255,7 +255,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
                     },
                   }
                 );
-                console.log("Review Submit Response: ", submitResponse);
+                console.log("Review Submit Response: ", submitResponse.data);
                 // If review submission fail
                 if (!submitResponse?.data?.ok) {
                   reviewFailUserNames.push(account.username);
