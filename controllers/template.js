@@ -642,7 +642,7 @@ export const submitTemplateForReview = async (req, res) => {
 
     res.json({
       success: true,
-      templates: `Template sent for review for ${watiIds.length} accounts.`,
+      message: `Template sent for review for ${watiIds.length} accounts.`,
     });
     // Create a queue with a concurrency limit (e.g., 5 requests at a time)
     const queue = new PQueue();
