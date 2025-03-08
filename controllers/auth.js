@@ -1,17 +1,48 @@
 import axios from "axios";
+import jwt from "jsonwebtoken";
 
 // Controller to login user
 export const login = async (req, res) => {
   try {
-    const { email, password, client_id } = req.body;
-    const response = await axios.post(
-      `${process.env.WATI_API_URL}/${client_id}/api/v1/accounts/login`,
-      { email, password }
-    );
+    const { username, password } = req.body;
 
-    res.status(200).json({ result: response.data });
+    if (
+      username === process.env.APP_USERNAME &&
+      password === process.env.APP_PASSWORD
+    ) {
+      // Generating token to storing in cooke for next time
+      const token = jwt.sign(
+        { user_name: "largemedia" },
+        process.env.JWT_SECRET,
+        { expiresIn: "3d" }
+      );
+      return res.status(200).json({ success: true, token });
+    } else {
+      return res
+        .status(400)
+        .json({ success: false, message: "Incorrect Credentials!☹️" });
+    }
   } catch (error) {
-    res.status(400).json({ error: error.response.data });
+    res.status(400).json({ error: "Failed to login" });
+  }
+};
+
+// Verify user
+export const verifyUser = async (req, res) => {
+  try {
+    const token = req?.headers?.authorization?.split(" ")[1];
+
+    const result = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (result.user_name === process.env.APP_USERNAME) {
+      return res.status(200).json({
+        success: true,
+        message: "User is authorized",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(401).json({ success: false, message: "Unauthorized!" });
   }
 };
 
@@ -26,7 +57,7 @@ export const loginAndGetToken = async (email, password, client_id) => {
     if (response?.data?.profile?.token) {
       return response?.data?.profile?.token;
     }
-    console.log("Login response: ",response.data)
+    console.log("Login response: ", response.data);
     return null;
   } catch (error) {
     console.error(
