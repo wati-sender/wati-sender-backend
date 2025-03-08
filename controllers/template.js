@@ -6,6 +6,7 @@ import { isValidObjectId } from "mongoose";
 import { asyncForEach } from "../utils/common.js";
 import templateModel from "../models/template.model.js";
 import watiTemplatesIdsModel from "../models/watiTemplatesIds.model.js";
+import { loginAndGetToken } from "./auth.js";
 
 // For creating single template
 export const createTemplate = async (req, res) => {
@@ -297,16 +298,52 @@ export const createTemplateInAllAccounts = async (req, res) => {
         queue.add(async () => {
           try {
             const client_id = account?.loginUrl?.split("/")[3];
-            const token = account.token;
+            let token = account.token;
+            console.log(
+              "DATA: ",
+              account.username,
+              account.password,
+              client_id
+            );
+            if (!token) {
+              token = await loginAndGetToken(
+                account?.username,
+                account?.password,
+                client_id
+              );
+            }
 
             if (token) {
               // If login success
-              const response = await createTemplateBulk(
+              let response = await createTemplateBulk(
                 token,
                 templateData,
                 client_id
               );
               console.log("REsponse: ", response);
+              console.log("account: ", account);
+
+              if (!response?.success) {
+                if (response?.error?.includes("401")) {
+                  token = await loginAndGetToken(
+                    account?.username,
+                    account?.password,
+                    client_id
+                  );
+
+                  response = await createTemplateBulk(
+                    token,
+                    templateData,
+                    client_id
+                  );
+
+                  await accountModel.findOneAndUpdate(
+                    { _id: account?._id },
+                    { token: token }
+                  );
+                }
+              }
+
               if (response.success) {
                 // If template create success
                 createSuccessUserNames.push(account.username);
@@ -644,6 +681,18 @@ export const submitTemplateForReview = async (req, res) => {
         })
       )
     );
+    await queue.onIdle();
+
+    const updatedTemplate = await templateModel.findOneAndUpdate(
+      { name: template_name },
+      {
+        submittedForReview: true,
+        reviewSentSuccess: sentSuccess,
+        reviewSentFail: sentFail,
+      },
+      { new: true } // Return the updated document
+    );
+    console.log("updatedTemplate: ", updatedTemplate);
   } catch (error) {
     console.log("Template Review Submit Error: ", error);
     res.status(500).json({ message: "Internal server error" });
