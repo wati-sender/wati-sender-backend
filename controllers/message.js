@@ -247,7 +247,7 @@ export const getCampaignReportByAccount = async (req, res) => {
       {
         dateFrom: "2025-02-24T00:00:00.000Z",
         dateTo: getEndOfTodayUTC(),
-        searchString: "test_22",
+        searchString: campaign?.name || "",
         sortBy: 0,
         filterStatus: [],
         pageSize: 5,
