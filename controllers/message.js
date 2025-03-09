@@ -262,8 +262,28 @@ export const getCampaignByID = async (req, res) => {
       )
     );
 
+    let campaignResp = {
+      _id: campaign?._id,
+      name: campaign?.name,
+      selectedTemplateName: campaign?.selectedTemplateName,
+      errors: campaign?.errors,
+      createdAt: "2025-03-09T13:18:31.702Z",
+      updatedAt: "2025-03-09T13:18:31.702Z",
+      selectedAccounts: campaign?.selectedAccounts?.map((acc) => ({
+        _id: acc?._id,
+        name: acc?.name,
+        phone: acc?.phone,
+        username: acc?.username,
+        password: acc?.password,
+        loginUrl: acc?.loginUrl,
+
+        createdAt: "2025-03-08T12:46:56.842Z",
+        updatedAt: "2025-03-08T12:46:56.842Z",
+      })),
+    };
     return res.status(200).json({
       success: true,
+      campaign:campaignResp,
       statistics: {
         totalProcessing,
         totalQueued,
