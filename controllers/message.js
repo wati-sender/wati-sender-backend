@@ -205,11 +205,79 @@ export const getCampaignByID = async (req, res) => {
     const campaign = await campaignModel
       .findById(campaignId)
       .sort({ createdAt: -1 })
-      .populate("selectedAccounts", "-token");
+      .populate("selectedAccounts");
 
-    return res.status(200).json({ success: true, campaign });
+    const selectedAccounts = campaign?.selectedAccounts || [];
+
+    const queue = new PQueue({ concurrency: 5 }); // Only 5 batch sent at a time
+    console.log("selected:accounts: ", campaign);
+
+    let totalProcessing = 0;
+    let totalQueued = 0;
+    let totalSent = 0;
+    let totalDelivered = 0;
+    let totalOpen = 0;
+    let totalReplied = 0;
+    let totalFailed = 0;
+    let totalStopped = 0;
+    let totalSending = 0;
+
+    // Get exact report from wati
+    await Promise.all(
+      selectedAccounts?.map((account) =>
+        queue.add(async () => {
+          try {
+            const client_id = account?.loginUrl?.split("/")[3];
+            const { data } = await axios.post(
+              `${process.env.WATI_API_URL}/${client_id}/api/v1/broadcast/getBroadcastsOverview`,
+              {
+                dateFrom: "2025-02-24T00:00:00.000Z",
+                dateTo: getEndOfTodayUTC(),
+                searchString: campaign?.name || "",
+                sortBy: 0,
+                filterStatus: [],
+                pageSize: 5,
+                pageNumber: 0,
+              },
+              { headers: { Authorization: `Bearer ${account?.token}` } }
+            );
+            console.log("Campaign Report: ", data);
+
+            if (data?.ok) {
+              const { result } = data || {};
+              totalProcessing += result.totalProcessing || 0;
+              totalQueued += result.totalQueued || 0;
+              totalSent += result.totalSent || 0;
+              totalDelivered += result.totalDelivered || 0;
+              totalOpen += result.totalOpen || 0;
+              totalReplied += result.totalReplied || 0;
+              totalFailed += result.totalFailed || 0;
+              totalStopped += result.totalStopped || 0;
+              totalSending += result.totalSending || 0;
+            }
+          } catch (error) {
+            console.error("Error to get all campaign reports:", error.message);
+          }
+        })
+      )
+    );
+
+    return res.status(200).json({
+      success: true,
+      statistics: {
+        totalProcessing,
+        totalQueued,
+        totalSent,
+        totalDelivered,
+        totalOpen,
+        totalReplied,
+        totalFailed,
+        totalStopped,
+        totalSending,
+      },
+    });
   } catch (error) {
-    console.log("Get all campaign error: ", error);
+    console.log("Get all campaign report error: ", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -250,7 +318,7 @@ export const getCampaignReportByAccount = async (req, res) => {
         searchString: campaign?.name || "",
         sortBy: 0,
         filterStatus: [],
-        pageSize: 5,
+        pageSize: 1,
         pageNumber: 0,
       },
       { headers: { Authorization: `Bearer ${account?.token}` } }
