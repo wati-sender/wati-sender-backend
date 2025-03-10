@@ -245,6 +245,7 @@ export const getCampaignByID = async (req, res) => {
 
             if (data?.ok) {
               const { result } = data || {};
+              console.log("_recipentsd:", result);
               totalProcessing += result.totalProcessing || 0;
               totalQueued += result.totalQueued || 0;
               totalSent += result.totalSent || 0;
@@ -283,7 +284,7 @@ export const getCampaignByID = async (req, res) => {
     };
     return res.status(200).json({
       success: true,
-      campaign:campaignResp,
+      campaign: campaignResp,
       statistics: {
         totalProcessing,
         totalQueued,
@@ -294,6 +295,7 @@ export const getCampaignByID = async (req, res) => {
         totalFailed,
         totalStopped,
         totalSending,
+        totalContacts: campaign?.totalContacts,
       },
     });
   } catch (error) {
@@ -361,7 +363,6 @@ export const getCampaignReportByAccount = async (req, res) => {
       },
       statistics: campaignStats,
     });
-    res.status(200).send("Suc");
   } catch (error) {
     console.log("Campaign account report error: ", error.message);
     res.status(400).json({ success: false, error: error.message });
