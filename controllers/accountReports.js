@@ -1,5 +1,6 @@
 import { isValidObjectId } from "mongoose";
 import accountsReportModel from "../models/accountsReport.model.js";
+import accountModel from "../models/account.model.js";
 
 // To get all import reports
 export const getAllAccountImportReports = async (req, res) => {
@@ -38,7 +39,36 @@ export const getAccountImportReports = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Report not found for given ID." });
 
-    return res.status(200).json({ success: true, report });
+    // Get account from DB.
+    const insertedAccountDetails = await accountModel
+      .find({
+        username: { $in: report.inserted },
+      })
+      .select("-token");
+    const existAccountDetails = await accountModel
+      .find({
+        username: { $in: report.exist },
+      })
+      .select("-token");
+
+    const failedAccountDetails = await accountModel
+      .find({
+        username: { $in: report.failed },
+      })
+      .select("-token");
+
+    return res.status(200).json({
+      success: true,
+      report: {
+        _id: report?._id,
+        total: report?.total,
+        createdAt: report?.createdAt,
+        updatedAt: report?.updatedAt,
+        inserted: insertedAccountDetails,
+        exist: existAccountDetails,
+        failed: failedAccountDetails,
+      },
+    });
   } catch (error) {
     console.log("Account reports get error: ", error);
     res.status(500).json({
