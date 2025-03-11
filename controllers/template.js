@@ -9,6 +9,7 @@ import watiTemplatesIdsModel from "../models/watiTemplatesIds.model.js";
 import { loginAndGetToken } from "./auth.js";
 
 // For creating single template
+// ! Not in use
 export const createTemplate = async (req, res) => {
   try {
     const {
@@ -79,28 +80,6 @@ export const createTemplate = async (req, res) => {
 // Function to get all templates of user
 export const getAllTemplates = async (req, res) => {
   try {
-    // const token = req.headers.authorization;
-    // const client_id = req.params.client_id;
-
-    // if (!token || !client_id) {
-    //   return res
-    //     .status(401)
-    //     .json({ error: "Authorization token or client id is missing" });
-    // }
-    // const response = await axios.get(
-    //   `${process.env.WATI_API_URL}/${client_id}/api/v1/getMessageTemplates?pageSize=100&pageNumber=1`,
-    //   {
-    //     headers: {
-    //       accept: "*/*",
-    //       Authorization: token,
-    //     },
-    //   }
-    // );
-
-    // if (response?.data?.result !== "success") {
-    //   return res.status(500).send("Failed to get templates");
-    // }
-
     const templates = await templateModel
       .find()
       .select("-accountsToAdd")
@@ -226,72 +205,6 @@ export const createTemplateInAllAccounts = async (req, res) => {
       )} minutes.`,
     });
 
-    // await asyncForEach(accounts, async (account) => {
-    //   try {
-    //     const client_id = account?.loginUrl?.split("/")[3];
-    //     const token = account.token;
-
-    //     if (token) {
-    //       // If login success
-    //       const response = await createTemplateBulk(
-    //         token,
-    //         templateData,
-    //         client_id
-    //       );
-    //       console.log("REsponse: ", response);
-    //       if (response.success) {
-    //         // If template create success
-    //         createSuccessUserNames.push(account.username);
-    //         console.log(
-    //           `Template created successfully for ${account.username}`
-    //         );
-
-    //         // Request for review
-    //         const submitResponse = await axios.get(
-    //           `${process.env.WATI_API_URL}/${client_id}/api/v1/templates/submit/${response?.data?.result?.id}`,
-    //           {
-    //             headers: {
-    //               Authorization: `Bearer ${token}`,
-    //             },
-    //           }
-    //         );
-    //         console.log("Review Submit Response: ", submitResponse.data);
-    //         // If review submission fail
-    //         if (!submitResponse?.data?.ok) {
-    //           reviewFailUserNames.push(account.username);
-    //           console.error(
-    //             `Template review failed for ${account.username}`
-    //           );
-    //         } else {
-    //           // If sent for review success
-    //           console.log(
-    //             `Template review submitted successfully for ${account.username}`
-    //           );
-    //           reviewSuccessTempUsernames.push(account.username);
-    //         }
-    //       } else {
-    //         // If template create fails
-    //         createFailedUserNames.push(account.username);
-    //         reviewFailUserNames.push(account.username);
-    //         console.error(
-    //           `Failed to create template for ${account.username}: ${response.error}`
-    //         );
-    //       }
-    //     } else {
-    //       // If Login fail
-    //       createFailedUserNames.push(account.username);
-    //       reviewFailUserNames.push(account.username);
-    //       console.error(
-    //         `Skipping template creation for ${account.username} due to login failure.`
-    //       );
-    //     }
-    //   } catch (error) {
-    //     console.log("Error: ", error);
-    //     createFailedUserNames.push(account.username);
-    //     reviewFailUserNames.push(account.username);
-    //     console.error(`Error processing ${account.username}: ${error.message}`);
-    //   }
-    // });
     // ******************************
     await Promise.all(
       accounts.map((account) =>
@@ -360,30 +273,6 @@ export const createTemplateInAllAccounts = async (req, res) => {
                 });
 
                 await newTempEntry.save();
-
-                // Request for review
-                // const submitResponse = await axios.get(
-                //   `${process.env.WATI_API_URL}/${client_id}/api/v1/templates/submit/${response?.data?.result?.id}`,
-                //   {
-                //     headers: {
-                //       Authorization: `Bearer ${token}`,
-                //     },
-                //   }
-                // );
-                // console.log("Review Submit Response: ", submitResponse.data);
-                // // If review submission fail
-                // if (!submitResponse?.data?.ok) {
-                //   reviewFailUserNames.push(account.username);
-                //   console.error(
-                //     `Template review failed for ${account.username}`
-                //   );
-                // } else {
-                //   // If sent for review success
-                //   console.log(
-                //     `Template review submitted successfully for ${account.username}`
-                //   );
-                //   reviewSuccessTempUsernames.push(account.username);
-                // }
               } else {
                 // If template create fails
                 createFailedUserNames.push(account.username);
@@ -425,6 +314,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
       accountsToAdd: accounts?.map((acc) => acc._id),
       failedCount: createFailedUserNames?.length,
       successCount: createSuccessUserNames?.length,
+      templateData,
     });
 
     await template.save();
@@ -546,69 +436,69 @@ export const templateById = async (req, res) => {
     const template = await templateModel.findById(templateId);
 
     // Report
-    const report = await templatesReportsModel.findOne({
-      templateName: template?.name,
-    });
+    // const report = await templatesReportsModel.findOne({
+    //   templateName: template?.name,
+    // });
 
-    // All usernames (Selected for bulk template create);
-    const usernames = [...report.success, ...report.failed];
+    // // All usernames (Selected for bulk template create);
+    // const usernames = [...report.success, ...report.failed];
 
-    // Get account from DB to get token of that account.
-    const accounts = await accountModel.find({ username: { $in: usernames } });
+    // // Get account from DB to get token of that account.
+    // const accounts = await accountModel.find({ username: { $in: usernames } });
 
-    // Status result
-    const result = [];
+    // // Status result
+    // const result = [];
 
-    await asyncForEach(accounts, async (data, index) => {
-      const { name, phone, username, password, loginUrl, token } = data;
+    // await asyncForEach(accounts, async (data, index) => {
+    //   const { name, phone, username, password, loginUrl, token } = data;
 
-      const client_id = loginUrl.split("/")[3];
+    //   const client_id = loginUrl.split("/")[3];
 
-      const { data: responseData } = await axios.post(
-        `${process.env.WATI_API_URL}/${client_id}/api/v1/templates`,
-        {
-          searchString: report.templateName,
-          sortBy: 0,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            accept: "*/*",
-          },
-        }
-      );
+    //   const { data: responseData } = await axios.post(
+    //     `${process.env.WATI_API_URL}/${client_id}/api/v1/templates`,
+    //     {
+    //       searchString: report.templateName,
+    //       sortBy: 0,
+    //     },
+    //     {
+    //       headers: {
+    //         Authorization: `Bearer ${token}`,
+    //         accept: "*/*",
+    //       },
+    //     }
+    //   );
 
-      console.log("Template get status response: ", responseData);
+    //   console.log("Template get status response: ", responseData);
 
-      if (responseData?.ok) {
-        console.log("Wend Inside");
-        // Getting exact item from an array of found templates
-        const template = responseData?.result?.items?.find(
-          (temp) => temp?.elementName === report.templateName
-        );
-        console.log("Found template: ", template);
-        if (template) {
-          result.push({
-            templateName: report?.templateName,
-            accountName: data?.name,
-            userName: data?.username,
-            submitForReview: report.submitForReview?.includes(data?.username),
-            isCreated: report?.success?.includes(data?.username),
-            reviewStatus: template?.status,
-            phone: data?.phone,
-          });
-        }
-      }
+    //   if (responseData?.ok) {
+    //     console.log("Wend Inside");
+    //     // Getting exact item from an array of found templates
+    //     const template = responseData?.result?.items?.find(
+    //       (temp) => temp?.elementName === report.templateName
+    //     );
+    //     console.log("Found template: ", template);
+    //     if (template) {
+    //       result.push({
+    //         templateName: report?.templateName,
+    //         accountName: data?.name,
+    //         userName: data?.username,
+    //         submitForReview: report.submitForReview?.includes(data?.username),
+    //         isCreated: report?.success?.includes(data?.username),
+    //         reviewStatus: template?.status,
+    //         phone: data?.phone,
+    //       });
+    //     }
+    //   }
 
-      try {
-      } catch (err) {
-        console.log("Error while getting template status: ", err);
-      }
-    });
+    //   try {
+    //   } catch (err) {
+    //     console.log("Error while getting template status: ", err);
+    //   }
+    // });
 
     res.status(200).json({
       success: true,
-      data: result,
+      data: template,
     });
   } catch (error) {}
 };
