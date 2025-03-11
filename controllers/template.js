@@ -176,8 +176,8 @@ export const createTemplateInAllAccounts = async (req, res) => {
       return res.status(200).send("Accounts not found");
     }
 
-    // Create a queue with a concurrency limit (e.g., 5 requests at a time)
-    const queue = new PQueue();
+    // Sent all request at once
+    const queue = new PQueue({ concurrency: accounts?.length });
 
     // Counters for success, failures, and review
     const createSuccessUserNames = [];
