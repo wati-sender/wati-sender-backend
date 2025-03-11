@@ -176,8 +176,8 @@ export const createTemplateInAllAccounts = async (req, res) => {
       return res.status(200).send("Accounts not found");
     }
 
-    // Sent all request at once
-    const queue = new PQueue({ concurrency: accounts?.length });
+    // Create a queue with a concurrency limit (e.g., 5 requests at a time)
+    const queue = new PQueue();
 
     // Counters for success, failures, and review
     const createSuccessUserNames = [];
@@ -402,6 +402,7 @@ export const getTemplateReviewStatus = async (req, res) => {
             accountName: data?.name,
             userName: data?.username,
             phone: data?.phone,
+            createdAt: data?.createdAt,
           });
         }
       }
@@ -534,8 +535,8 @@ export const submitTemplateForReview = async (req, res) => {
       success: true,
       message: `Template sent for review for ${watiIds.length} accounts.`,
     });
-    // Send all requests at once
-    const queue = new PQueue({ concurrency: watiIds?.length });
+    // Create a queue with a concurrency limit (e.g., 5 requests at a time)
+    const queue = new PQueue();
 
     await Promise.all(
       watiIds.map((tempInfo) =>
