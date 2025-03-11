@@ -33,6 +33,7 @@ const templateSchema = new mongoose.Schema(
       required: true,
       default: 0,
     },
+    templateData: {},
   },
   { timestamps: true }
 );
