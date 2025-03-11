@@ -534,8 +534,8 @@ export const submitTemplateForReview = async (req, res) => {
       success: true,
       message: `Template sent for review for ${watiIds.length} accounts.`,
     });
-    // Create a queue with a concurrency limit (e.g., 5 requests at a time)
-    const queue = new PQueue();
+    // Send all requests at once
+    const queue = new PQueue({ concurrency: watiIds?.length });
 
     await Promise.all(
       watiIds.map((tempInfo) =>
