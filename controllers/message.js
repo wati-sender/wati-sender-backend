@@ -43,10 +43,11 @@ export const sendBulkMessages = async (req, res) => {
     if (!allAccounts.length) {
       return res.status(400).json({ message: "No accounts available" });
     }
-
-    const queue = new PQueue({ concurrency: 1 }); // Only 1 batch sent at a time
     let BATCH_SIZE = receivers?.length / allAccounts?.length; // Number of messages per batch
     BATCH_SIZE = BATCH_SIZE >= 1 ? Math.ceil(BATCH_SIZE) : 1;
+
+    const queue = new PQueue({ concurrency: BATCH_SIZE }); // Send all request at once
+
     let successCount = 0;
     let failCount = 0;
     let totalMessagesSent = 0;
