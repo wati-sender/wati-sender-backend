@@ -1,6 +1,6 @@
 import PQueue from "p-queue";
 import accountModel from "../models/account.model.js";
-import { asyncForEach } from "../utils/common.js";
+import { asyncForEach, escapeRegExpChars } from "../utils/common.js";
 import { getAccountStatus, loginAndGetToken } from "./auth.js";
 import accountsReportModel from "../models/accountsReport.model.js";
 
@@ -91,8 +91,27 @@ export const addBulkAccounts = async (req, res) => {
 
 export const getAllAccounts = async (req, res) => {
   try {
-    const { account_status = "", quality_rating = "" } = req.query;
-    const allAccounts = await accountModel.find().sort({ createdAt: -1 });
+    const {
+      account_status = "",
+      quality_rating = "",
+      limit,
+      page,
+      search = "",
+    } = req.query;
+
+    let filter = {};
+
+    if (search) filter.username = { $regex: search, $options: "i" }; // Partial match, case-insensitive
+
+    const allAccounts = await accountModel
+      .find(filter)
+      .limit(limit)
+      .skip(limit * page)
+      .sort({ createdAt: -1 });
+
+    console.log("FILTERS: ", filter);
+    console.log("FOUND ACCOUNTS: ", allAccounts);
+
     let connectedAccounts = 0;
     let notConnectedAccounts = 0;
     let allVerificationsCount = 0;
@@ -120,7 +139,7 @@ export const getAllAccounts = async (req, res) => {
 
     // Process each account
     await Promise.all(
-      allAccounts.map((account) =>
+      allAccounts.map((account, i) =>
         queue.add(async () => {
           try {
             const client_id = account?.loginUrl?.split("/")[3];
@@ -143,7 +162,7 @@ export const getAllAccounts = async (req, res) => {
               // If not filter applied send all accounts
               if (!account_status && !quality_rating) {
                 console.log("STATUS: ", accountStatus);
-                filteredAccounts?.push({
+                filteredAccounts[i] = {
                   status: accountStatus?.status,
                   quality_rating: accountStatus?.qualityRating,
                   name: account?.name,
@@ -151,8 +170,8 @@ export const getAllAccounts = async (req, res) => {
                   loginUrl: account?.loginUrl,
                   password: account?.password,
                   phone: account?.phone,
-                  _id: account?._id
-                });
+                  _id: account?._id,
+                };
               } else {
                 // Filter accounts based on selected status and quality rating
                 if (
@@ -162,7 +181,7 @@ export const getAllAccounts = async (req, res) => {
                     selectedQualities.includes(accountStatus?.qualityRating))
                 ) {
                   // If filtered are matched, push the account into filteredAccounts
-                  filteredAccounts?.push({
+                  filteredAccounts[i] = {
                     status: accountStatus?.status,
                     quality_rating: accountStatus?.qualityRating,
                     name: account?.name,
@@ -170,8 +189,8 @@ export const getAllAccounts = async (req, res) => {
                     loginUrl: account?.loginUrl,
                     password: account?.password,
                     phone: account?.phone,
-                    _id: account?._id
-                  });
+                    _id: account?._id,
+                  };
                 }
               }
 
