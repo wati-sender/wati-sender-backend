@@ -9,6 +9,7 @@ import AccountRoutes from "./routes/account.js";
 import MessagesRoutes from "./routes/messages.js";
 import StatisticsRoutes from "./routes/statistics.js";
 import ReportsRoutes from "./routes/reports.js";
+import MediaRoutes from "./routes/mediaRoutes.js";
 
 dotenv.config();
 
@@ -18,17 +19,18 @@ app.use(express.json());
 
 connectToDB();
 
-app.get("/api/isworking", (req, res) => {
-  res.send("Working!");
+app.get("/", (req, res) => {
+  res.send("Hello World!");
 });
 
-app.use("/api/auth", AuthRoutes);
-app.use("/api/templates", TemplateRoutes);
-app.use("/api/contacts", ContactRoutes);
-app.use("/api/accounts", AccountRoutes);
-app.use("/api/messages", MessagesRoutes);
-app.use("/api/statistics", StatisticsRoutes);
-app.use("/api/reports", ReportsRoutes);
+app.use("/auth", AuthRoutes);
+app.use("/templates", TemplateRoutes);
+app.use("/contacts", ContactRoutes);
+app.use("/accounts", AccountRoutes);
+app.use("/messages", MessagesRoutes);
+app.use("/statistics", StatisticsRoutes);
+app.use("/reports", ReportsRoutes);
+app.use("/media", MediaRoutes)
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
