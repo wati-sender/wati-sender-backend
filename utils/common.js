@@ -18,3 +18,7 @@ export const getEndOfTodayUTC = () => {
   today.setUTCHours(23, 59, 59, 0); // Set time to 23:59:59.000 UTC
   return today.toISOString();
 };
+
+export function escapeRegExpChars(text) {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+}
