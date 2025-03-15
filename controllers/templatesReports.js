@@ -16,6 +16,14 @@ export const getAllBulkTemplateCreateReport = async (req, res) => {
       .limit(limit)
       .skip(limit * page)
       .sort({ createdAt: -1 });
+
+    let totalCount;
+
+    if (search) {
+      totalCount = reports?.length;
+    } else {
+      totalCount = await templatesReportsModel.countDocuments();
+    }
     return res
       .status(200)
       .json({ success: true, total: reports?.length, reports });
