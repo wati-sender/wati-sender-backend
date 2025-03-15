@@ -589,3 +589,69 @@ export const submitTemplateForReview = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// Delete single templates
+export const deleteSingleTemplate = async (req, res) => {
+  try {
+    const { templateId } = req.body;
+
+    if (!templateId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please provide templateId" });
+    }
+
+    // Permanently delete the account
+    const deletedTemplate = await templateModel.findByIdAndDelete(templateId);
+
+    if (!deletedTemplate) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Template not found" });
+    }
+
+    const watiTemplateIds = await watiTemplatesIdsModel
+      .find({
+        templateName: deletedTemplate?.name,
+      })
+      .populate("accountId");
+
+    const queue = new PQueue({ concurrency: 100 }); // Request to send one time
+
+    // Delete template from all wati accounts
+    await Promise.all(
+      watiTemplateIds.map((item) => {
+        queue.add(async () => {
+          try {
+            const client_id = item?.accountId?.loginUrl?.split("/")[3];
+            const token = item?.accountId.token;
+
+            // Send batch API request
+            const response = await axios.delete(
+              `${process.env.WATI_API_URL}/${client_id}/api/v1/templates/delete/${item?.watiTemplateId}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+          } catch (error) {
+            console.log("Template delete error:", error);
+          }
+        });
+      })
+    );
+
+    const watiTempIdDeleteFromDB = await watiTemplatesIdsModel.deleteMany({
+      templateName: deletedTemplate?.name,
+    });
+
+    const templateReportDelete = await templatesReportsModel.deleteMany({
+      templateName: deletedTemplate?.name,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Template deleted successfully",
+    });
+  } catch (error) {
+    console.log("Template delete Error: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
