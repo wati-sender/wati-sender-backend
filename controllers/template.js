@@ -577,7 +577,7 @@ export const submitTemplateForReview = async (req, res) => {
     const updatedTemplate = await templateModel.findOneAndUpdate(
       { name: template_name },
       {
-        submittedForReview: true,
+        submittedForReview: sentSuccess === watiIds.length,
         reviewSentSuccess: sentSuccess,
         reviewSentFail: sentFail,
       },
