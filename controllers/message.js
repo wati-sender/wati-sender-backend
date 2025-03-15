@@ -3,7 +3,7 @@ import axios from "axios";
 import accountModel from "../models/account.model.js";
 import campaignModel from "../models/campaign.model.js";
 import { isValidObjectId } from "mongoose";
-import { getEndOfTodayUTC } from "../utils/common.js";
+import { escapeRegExpChars, getEndOfTodayUTC } from "../utils/common.js";
 
 export const sendBulkMessages = async (req, res) => {
   try {
@@ -188,11 +188,40 @@ export const sendBulkMessages = async (req, res) => {
 
 export const getAllCampaigns = async (req, res) => {
   try {
+    const { limit, page, search = "" } = req.query;
+
+    const filter = {};
+    if (search) {
+      // filter.name = { $regex: search, $options: "i" };
+
+      if (search) {
+        filter.$or = [
+          {
+            name: {
+              $regex: escapeRegExpChars(search),
+              $options: "i",
+            },
+          },
+          {
+            selectedTemplateName: {
+              $regex: escapeRegExpChars(search),
+              $options: "i",
+            },
+          },
+        ];
+      }
+      // filter.selectedTemplateName = { $regex: search, $options: "i" };
+    } // Partial match, case-insensitive
+
     const campaigns = await campaignModel
-      .find()
+      .find(filter)
+      .limit(limit)
+      .skip(limit * page)
       .populate("selectedAccounts", "-token")
       .sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, campaigns });
+    return res
+      .status(200)
+      .json({ success: true, total: campaigns?.length, campaigns });
   } catch (error) {
     console.log("All campaigns get error: ", error);
     res.status(500).json({ message: "Internal server error" });
