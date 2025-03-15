@@ -219,9 +219,17 @@ export const getAllCampaigns = async (req, res) => {
       .skip(limit * page)
       .populate("selectedAccounts", "-token")
       .sort({ createdAt: -1 });
+
+    let totalCount;
+
+    if (search) {
+      totalCount = campaigns?.length;
+    } else {
+      totalCount = await campaignModel.countDocuments();
+    }
     return res
       .status(200)
-      .json({ success: true, total: campaigns?.length, campaigns });
+      .json({ success: true, total: totalCount, campaigns });
   } catch (error) {
     console.log("All campaigns get error: ", error);
     res.status(500).json({ message: "Internal server error" });
