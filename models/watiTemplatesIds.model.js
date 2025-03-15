@@ -5,6 +5,7 @@ const watiTemplateIdsSchema = new mongoose.Schema(
     accountId: {
       type: String,
       required: true,
+      ref: "Accounts",
     },
     watiTemplateId: {
       type: String,
