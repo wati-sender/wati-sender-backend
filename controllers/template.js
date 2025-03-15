@@ -80,8 +80,16 @@ export const createTemplate = async (req, res) => {
 // Function to get all templates of user
 export const getAllTemplates = async (req, res) => {
   try {
+    const { limit, page, search = "" } = req.query;
+
+    let filter = {};
+
+    if (search) filter.name = { $regex: search, $options: "i" }; // Partial match, case-insensitive
+
     const templates = await templateModel
-      .find()
+      .find(filter)
+      .limit(limit)
+      .skip(limit * page)
       .select("-accountsToAdd")
       .sort({ createdAt: -1 });
 
