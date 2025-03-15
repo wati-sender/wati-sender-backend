@@ -93,13 +93,28 @@ export const getAllTemplates = async (req, res) => {
       .select("-accountsToAdd")
       .sort({ createdAt: -1 });
 
+    let totalCount;
+
+    if (search) {
+      totalCount = templates?.length;
+    } else {
+      totalCount = await templateModel.countDocuments();
+    }
+
     return res.status(200).json({
-      total: templates?.length,
+      success: true,
+      total: totalCount,
       templates,
     });
   } catch (error) {
     console.log("Get All Templates Error: ", error);
-    res.status(500).json({ error: error });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to get templates",
+        error: error,
+      });
   }
 };
 
