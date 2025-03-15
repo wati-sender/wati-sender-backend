@@ -101,7 +101,22 @@ export const getAllAccounts = async (req, res) => {
 
     let filter = {};
 
-    if (search) filter.username = { $regex: search, $options: "i" }; // Partial match, case-insensitive
+    if (search) {
+      filter.$or = [
+        {
+          name: {
+            $regex: escapeRegExpChars(search),
+            $options: "i",
+          },
+        },
+        {
+          selectedTemplateName: {
+            $regex: escapeRegExpChars(search),
+            $options: "i",
+          },
+        },
+      ];
+    }
 
     const allAccounts = await accountModel
       .find(filter)
@@ -208,8 +223,15 @@ export const getAllAccounts = async (req, res) => {
       )
     );
 
+    let totalCount;
+
+    if (search || account_status || quality_rating) {
+      totalCount = filteredAccounts?.length;
+    } else {
+      totalCount = await accountModel.countDocuments();
+    }
     return res.status(200).json({
-      total: filteredAccounts?.length,
+      total: totalCount,
       errors,
       accounts: filteredAccounts,
     });
