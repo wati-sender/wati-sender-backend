@@ -4,7 +4,18 @@ import templatesReportsModel from "../models/templatesReports.model.js";
 // To get bulk template add reports
 export const getAllBulkTemplateCreateReport = async (req, res) => {
   try {
-    const reports = await templatesReportsModel.find().sort({ createdAt: -1 });
+    const { limit, page, search = "" } = req.query;
+
+    let filter = {};
+
+    if (search) {
+      if (search) filter.templateName = { $regex: search, $options: "i" }; // Partial match, case-insensitive
+    }
+    const reports = await templatesReportsModel
+      .find(filter)
+      .limit(limit)
+      .skip(limit * page)
+      .sort({ createdAt: -1 });
     return res
       .status(200)
       .json({ success: true, total: reports?.length, reports });
