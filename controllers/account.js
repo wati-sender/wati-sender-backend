@@ -94,8 +94,8 @@ export const getAllAccounts = async (req, res) => {
     const {
       account_status = "",
       quality_rating = "",
-      limit,
-      page,
+      limit = 10,
+      page = 0,
       search = "",
     } = req.query;
 
@@ -118,6 +118,21 @@ export const getAllAccounts = async (req, res) => {
       ];
     }
 
+    // Handle account status filter
+    if (account_status) {
+      const statusFilter = account_status.split("_");
+      if (statusFilter.length > 0) {
+        filter.status = { $in: statusFilter }; // 'status' can be an array like ["CONNECTED", "BANNED"]
+      }
+    }
+
+    if (quality_rating) {
+      const qualityFilter = quality_rating.split("_");
+      if (qualityFilter.length > 0) {
+        filter.qualityRating = { $in: qualityFilter }; // 'qualityRating' can be an array like ["GREEN", "RED"]
+      }
+    }
+
     const allAccounts = await accountModel
       .find(filter)
       .limit(limit)
@@ -125,115 +140,21 @@ export const getAllAccounts = async (req, res) => {
       .sort({ createdAt: -1 });
 
     console.log("FILTERS: ", filter);
-    console.log("FOUND ACCOUNTS: ", allAccounts);
-
-    let connectedAccounts = 0;
-    let notConnectedAccounts = 0;
-    let allVerificationsCount = 0;
-    let verificationFailed = 0;
-    const errors = [];
-    const filteredAccounts = [];
-
-    // If account_status is passed rating also required, if rating passed account_status is required.
-    // if (
-    //   (account_status && !quality_rating) ||
-    //   (!account_status && quality_rating)
-    // )
-    //   return res
-    //     .status(400)
-    //     .send("Account status and quality rating both are required.");
-
-    const selectedQualities = quality_rating.split("_");
-
-    const selectedAccountStatuses = account_status.split("_");
-
-    console.log("Selected Account Statuses: ", selectedQualities);
-    console.log("Selected Account Qualities: ", selectedQualities);
-
-    const queue = new PQueue({ concurrency: 100 }); // Request to send one time
-
-    // Process each account
-    await Promise.all(
-      allAccounts.map((account, i) =>
-        queue.add(async () => {
-          try {
-            const client_id = account?.loginUrl?.split("/")[3];
-            const token = account.token;
-            if (!token) {
-              // If login fail
-              verificationFailed++;
-            } else {
-              const accountStatus = await getAccountStatus(token, client_id);
-              console.log("status:", accountStatus);
-
-              if (accountStatus?.status === "CONNECTED") {
-                // If account is connected
-                connectedAccounts++;
-              } else {
-                // If account is not connected. It can be ban or restricted
-                notConnectedAccounts++;
-              }
-
-              // If not filter applied send all accounts
-              if (!account_status && !quality_rating) {
-                console.log("STATUS: ", accountStatus);
-                filteredAccounts[i] = {
-                  status: accountStatus?.status,
-                  quality_rating: accountStatus?.qualityRating,
-                  name: account?.name,
-                  username: account?.username,
-                  loginUrl: account?.loginUrl,
-                  password: account?.password,
-                  phone: account?.phone,
-                  _id: account?._id,
-                };
-              } else {
-                // Filter accounts based on selected status and quality rating
-                if (
-                  (selectedAccountStatuses?.length > 0 &&
-                    selectedAccountStatuses.includes(accountStatus?.status)) ||
-                  (selectedQualities?.length > 0 &&
-                    selectedQualities.includes(accountStatus?.qualityRating))
-                ) {
-                  // If filtered are matched, push the account into filteredAccounts
-                  filteredAccounts[i] = {
-                    status: accountStatus?.status,
-                    quality_rating: accountStatus?.qualityRating,
-                    name: account?.name,
-                    username: account?.username,
-                    loginUrl: account?.loginUrl,
-                    password: account?.password,
-                    phone: account?.phone,
-                    _id: account?._id,
-                  };
-                }
-              }
-
-              allVerificationsCount++;
-
-              // Update status in db as well
-              account.status = accountStatus?.status;
-              await account.save();
-            }
-          } catch (error) {
-            errors.push(error.message);
-            console.error(`Error Getting Account Status:`, error.message);
-          }
-        })
-      )
+    console.log(
+      "FOUND ACCOUNTS: ",
+      allAccounts?.map((acc) => acc?.username)
     );
 
     let totalCount;
 
     if (search || account_status || quality_rating) {
-      totalCount = filteredAccounts?.length;
+      totalCount = await accountModel.countDocuments(filter);
     } else {
       totalCount = await accountModel.countDocuments();
     }
     return res.status(200).json({
       total: totalCount,
-      errors,
-      accounts: filteredAccounts,
+      accounts: allAccounts,
     });
   } catch (error) {
     console.log("Get All Accounts Error: ", error);
