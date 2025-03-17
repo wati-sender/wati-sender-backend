@@ -110,7 +110,7 @@ export const getAllAccounts = async (req, res) => {
           },
         },
         {
-          selectedTemplateName: {
+          username: {
             $regex: escapeRegExpChars(search),
             $options: "i",
           },
