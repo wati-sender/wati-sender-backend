@@ -3,9 +3,14 @@ import axios from "axios";
 import accountModel from "../models/account.model.js";
 import campaignModel from "../models/campaign.model.js";
 import { isValidObjectId } from "mongoose";
-import { escapeRegExpChars, getEndOfTodayUTC } from "../utils/common.js";
+import {
+  distributeContactsToAccounts,
+  escapeRegExpChars,
+  getEndOfTodayUTC,
+} from "../utils/common.js";
 
-export const sendBulkMessages = async (req, res) => {
+// ! NOT IN USE
+/*export const sendBulkMessages1 = async (req, res) => {
   try {
     const {
       template_name,
@@ -79,6 +84,9 @@ export const sendBulkMessages = async (req, res) => {
       message: "Bulk message processing started.",
       BATCH_SIZE,
     });
+
+    console.log("BATCHES_: ", BATCH_SIZE);
+    return;
 
     // Process each batch
     await Promise.all(
@@ -183,6 +191,124 @@ export const sendBulkMessages = async (req, res) => {
   } catch (error) {
     console.error("Error in bulk message sending:", error.message);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+*/
+
+export const sendBulkMessages = async (req, res) => {
+  try {
+    const { template_name, account_ids, broadcast_name, receivers } = req.body;
+    // Example Usage:
+
+    if (!template_name || !broadcast_name)
+      return res
+        .status(400)
+        .send("Template name and Broadcast name are required");
+    if (
+      !account_ids ||
+      account_ids.length === 0 ||
+      !receivers ||
+      receivers?.length === 0
+    )
+      return res.status(400).send("Account ids and receivers are required");
+
+    // If broadcast name already exist throw an error.
+    const campaign = await campaignModel.findOne({ name: broadcast_name });
+    if (campaign) {
+      return res.status(400).send("Campaign with given name already exist.");
+    }
+
+    const allAccounts = await accountModel
+      .find({ _id: { $in: account_ids } })
+      .select("+token"); // Accounts filtered by account ids
+
+    if (!allAccounts.length) {
+      return res.status(400).json({ message: "No accounts available" });
+    }
+    console.log(
+      "Selected Accounts: ",
+      allAccounts?.map((acc) => acc?.username)
+    );
+    console.log("Total Receivers: ", receivers?.length);
+
+    console.log(
+      "BATCH_SIZE",
+      Math.floor(receivers?.length / allAccounts?.length)
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Bulk message processing started.",
+      batchSize: Math.floor(receivers?.length / allAccounts?.length),
+    });
+
+    // Distributing contacts based on accounts
+    const result = distributeContactsToAccounts(receivers, allAccounts);
+
+    const queue = new PQueue({
+      concurrency: Math.floor(allAccounts?.length),
+    }); // Send all request at once
+
+    const errors = [];
+
+    await Promise.all(
+      result?.map((account) => {
+        queue.add(async () => {
+          try {
+            const client_id = account?.loginUrl?.split("/")[3];
+
+            const payload = {
+              template_name: template_name, // Ensure this is passed in the request
+              broadcast_name: broadcast_name,
+              receivers: account?.contacts,
+            };
+
+            // Send batch API request
+            const response = await axios.post(
+              `${process.env.WATI_API_URL}/${client_id}/api/v2/sendTemplateMessages`,
+              payload,
+              { headers: { Authorization: `Bearer ${account?.token}` } }
+            );
+
+            if (response?.data?.result) {
+              console.log(
+                `Campaign sent from ${account?.username} to ${account?.contacts?.length} contacts.`
+              );
+            } else {
+              console.log("Error ELSE Block: ", response?.data);
+              errors.push({
+                username: account.username,
+                name: account?.name,
+                error: response?.data?.error,
+              });
+            }
+          } catch (error) {
+            console.log("Error CATCH Block: ", error);
+            errors.push({
+              username: account.username,
+              name: account?.name,
+              error: error,
+            });
+          }
+        });
+      })
+    );
+
+    await queue.onIdle();
+    // Add new campaign entry
+    const newCampaign = new campaignModel({
+      name: broadcast_name,
+      totalContacts: receivers?.length,
+      selectedAccounts: allAccounts?.map((acc) => acc?._id),
+      selectedTemplateName: template_name,
+      errors,
+    });
+
+    await newCampaign.save();
+  } catch (error) {
+    console.log("Error: ", error);
+    console.error("Error in bulk message sending:", error.message);
+    res.status(500).json({ message: "Internal server error", error });
   }
 };
 
