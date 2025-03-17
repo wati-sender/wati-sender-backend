@@ -22,3 +22,34 @@ export const getEndOfTodayUTC = () => {
 export function escapeRegExpChars(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 }
+
+
+export const distributeContactsToAccounts = (contacts, accounts) => {
+  const numAccounts = accounts.length;
+  const contactsPerAccount = Math.floor(contacts.length / numAccounts); // Base number of contacts per account
+  let remainingContacts = contacts.length % numAccounts; // Remainder contacts that will be distributed evenly
+
+  let accountIndex = 0;
+  const accountBatches = accounts.map(account => ({
+    account_id: account._id,
+    username: account.username,
+    token: account?.token,
+    loginUrl: account?.loginUrl,
+    password: account?.password,
+    contacts: []
+  }));
+
+  // Distribute contacts evenly across accounts
+  contacts.forEach((contact, index) => {
+    // Add the contact to the current account's batch
+    accountBatches[accountIndex].contacts.push(contact);
+
+    // Move to the next account
+    accountIndex = (accountIndex + 1) % numAccounts;
+  });
+
+  return accountBatches;
+};
+
+
+
