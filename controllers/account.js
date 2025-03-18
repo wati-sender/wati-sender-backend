@@ -3,6 +3,7 @@ import accountModel from "../models/account.model.js";
 import { asyncForEach, escapeRegExpChars } from "../utils/common.js";
 import { getAccountStatus, loginAndGetToken } from "./auth.js";
 import accountsReportModel from "../models/accountsReport.model.js";
+import axios from "axios";
 
 export const addBulkAccounts = async (req, res) => {
   try {
@@ -228,4 +229,63 @@ export const deleteMultipleAccounts = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+
+export const refetchAccountStatus = async (req, res) => {
+  try {
+    const accounts = await accountModel.find();
+    // const client_id = account?.loginUrl?.split("/")[3];
+    console.log("TASK STARTED")
+    // const response = await axios.post(
+    //   `${process.env.WATI_API_URL}/${client_id}/api/v2/sendTemplateMessages`,
+    //   payload,
+    //   { headers: { Authorization: `Bearer ${account?.token}` } }
+    // );
+
+    res.status(200).json({
+      success: true,
+      message: "Account status fetching started please wait for some time",
+    });
+
+    const queue = new PQueue({
+      concurrency: Math.floor(accounts?.length),
+    }); // Send all request at once
+
+    const temp = [];
+    await Promise.all(
+      accounts?.map((account) => {
+        queue.add(async () => {
+          try {
+            const client_id = account?.loginUrl?.split("/")[3];
+
+            // Send batch API request
+            const response = await axios.get(
+              `${process.env.WATI_API_URL}/${client_id}/api/v1/setting/wabaAccountStates`,
+              { headers: { Authorization: `Bearer ${account?.token}` } }
+            );
+            temp?.push({
+              data: response.data?.wabaStates,
+            });
+            console.log("TEMP: ", response?.data);
+            if (response?.data?.ok) {
+              await accountModel.findOneAndUpdate(
+                { _id: account?._id },
+                {
+                  status: response?.data?.wabaStates?.status,
+                  qualityRating: response?.data?.wabaStates?.qualityRating,
+                }
+              );
+            }
+          } catch (error) {
+            console.log("first", error);
+          }
+        });
+      })
+    );
+
+    await queue.onIdle();
+
+    console.log("REFETCHING_COMPLETED")
+  } catch (error) {}
 };
