@@ -200,6 +200,8 @@ export const sendBulkMessages = async (req, res) => {
     const { template_name, account_ids, broadcast_name, receivers } = req.body;
     // Example Usage:
 
+    return res.status(200).send("Success");
+
     if (!template_name || !broadcast_name)
       return res
         .status(400)
