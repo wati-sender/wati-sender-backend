@@ -108,13 +108,11 @@ export const getAllTemplates = async (req, res) => {
     });
   } catch (error) {
     console.log("Get All Templates Error: ", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Failed to get templates",
-        error: error,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Failed to get templates",
+      error: error,
+    });
   }
 };
 
@@ -389,60 +387,75 @@ export const getTemplateReviewStatus = async (req, res) => {
     // Status result
     const result = [];
 
-    await asyncForEach(accounts, async (data, index) => {
-      const { name, phone, username, password, loginUrl, token } = data;
+    const queue = new PQueue({
+      concurrency: Math.floor(accounts?.length),
+    }); // Send all request at once
 
-      const client_id = loginUrl.split("/")[3];
+    await Promise.all(
+      accounts?.map((account, i) => {
+        queue.add(async () => {
+          try {
+            const { name, phone, username, loginUrl, token } = account || {};
 
-      const { data: responseData } = await axios.post(
-        `${process.env.WATI_API_URL}/${client_id}/api/v1/templates`,
-        {
-          searchString: report.templateName,
-          sortBy: 0,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            accept: "*/*",
-          },
-        }
-      );
+            const client_id = loginUrl.split("/")[3];
 
-      console.log("Template get status response: ", responseData);
+            const { data } = await axios.post(
+              `${process.env.WATI_API_URL}/${client_id}/api/v1/templates`,
+              {
+                searchString: report.templateName,
+                sortBy: 0,
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  accept: "*/*",
+                },
+              }
+            );
 
-      if (responseData?.ok) {
-        console.log("Wend Inside");
-        // Getting exact item from an array of found templates
-        const template = responseData?.result?.items?.find(
-          (temp) => temp?.elementName === report.templateName
-        );
-        console.log("Found template: ", template);
-        if (template) {
-          result.push({
-            submitForReview: report.submitForReview?.includes(data?.username),
-            reviewStatus: template?.status,
-            templateName: report?.templateName,
-            accountName: data?.name,
-            userName: data?.username,
-            phone: data?.phone,
-            createdAt: data?.createdAt,
-          });
-        }
-      }
+            // console.log("Data from Api: ", data);
+            console.log(`Review fetch success for ${username} | ${i}`);
+            if (data?.ok) {
+              // Getting exact item from an array of found templates
+              const template = data?.result?.items?.find(
+                (temp) => temp?.elementName === report.templateName
+              );
 
-      try {
-      } catch (err) {
-        console.log("Error while getting template status: ", err);
-      }
-    });
+              // console.log("Found template: ", template);
+
+              if (template) {
+                result[i] = {
+                  submitForReview: report.submitForReview?.includes(username),
+                  reviewStatus: template?.status,
+                  templateName: report?.templateName,
+                  accountName: name,
+                  userName: username,
+                  phone: phone,
+                  createdAt: account?.createdAt,
+                };
+              }
+            }
+          } catch (error) {
+            console.log(
+              `Error while getting template status: ${account?.username}`,
+              error
+            );
+          }
+        });
+      })
+    );
+
+    await queue.onIdle();
+
+    // Remove undefined from result
+    const finalResult = result?.filter((item) => Boolean(item));
 
     res.status(200).json({
       success: true,
-      total: result.length,
-      data: result,
+      total: finalResult.length,
+      failed: result?.length - finalResult?.length,
+      data: finalResult,
     });
-
-    // Get all status from wati side
   } catch (error) {
     console.error("Template status get Error: ", error);
     res.status(500).json({
