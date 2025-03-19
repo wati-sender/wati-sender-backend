@@ -248,6 +248,7 @@ export const getCampaignByID = async (req, res) => {
       errors: campaign?.errors,
       createdAt: "2025-03-09T13:18:31.702Z",
       updatedAt: "2025-03-09T13:18:31.702Z",
+      totalContacts: campaign?.totalContacts,
       selectedAccounts: campaign?.selectedAccounts?.map((acc) => ({
         _id: acc?._id,
         name: acc?.name,
@@ -262,19 +263,7 @@ export const getCampaignByID = async (req, res) => {
     };
     return res.status(200).json({
       success: true,
-      campaign: campaignResp,
-      statistics: {
-        totalProcessing,
-        totalQueued,
-        totalSent,
-        totalDelivered,
-        totalOpen,
-        totalReplied,
-        totalFailed,
-        totalStopped,
-        totalSending,
-        totalContacts: campaign?.totalContacts,
-      },
+      campaign: campaignResp
     });
   } catch (error) {
     console.log("Get all campaign report error: ", error);
