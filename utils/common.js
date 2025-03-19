@@ -19,6 +19,14 @@ export const getEndOfTodayUTC = () => {
   return today.toISOString();
 };
 
+// current date - 2 months
+export const getEndOfLastMonthUTC = () => {
+  const lastMonth = new Date();
+  lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1); // Subtract 1 month
+  lastMonth.setUTCHours(23, 59, 59, 0); // Set time to 23:59:59.000 UTC
+  return lastMonth.toISOString();
+};
+
 export function escapeRegExpChars(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 }
