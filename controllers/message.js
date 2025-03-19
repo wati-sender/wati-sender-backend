@@ -158,7 +158,6 @@ export const getAllCampaigns = async (req, res) => {
       .find(filter)
       .limit(limit)
       .skip(limit * page)
-      .populate("selectedAccounts", "-token")
       .sort({ createdAt: -1 });
 
     let totalCount;
