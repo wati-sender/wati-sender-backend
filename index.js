@@ -27,8 +27,8 @@ cron.schedule("0 */2 * * *", () => {
   refetchAccountStatus();
 });
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
+app.get("/api/", (req, res) => {
+  res.send("WATISENDER API WORKING PROPERLY✔️");
 });
 
 app.use("/api/auth", AuthRoutes);
