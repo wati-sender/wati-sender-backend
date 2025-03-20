@@ -21,9 +21,9 @@ app.use(express.json({ limit: "50mb" }));
 
 connectToDB();
 
-// Cron job to fetch account status after every 2 hours
-cron.schedule("0 */2 * * *", () => {
-  console.log("Running task every 2 hours:", new Date().toLocaleTimeString());
+// Cron job to fetch account status every 30 minutes
+cron.schedule("*/30 * * * *", () => {
+  console.log("Running task every 30 minutes:", new Date().toLocaleTimeString());
   refetchAccountStatus();
 });
 
