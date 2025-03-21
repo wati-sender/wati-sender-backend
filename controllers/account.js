@@ -289,3 +289,63 @@ export const refetchAccountStatus = async (req, res) => {
     console.log("REFETCHING_COMPLETED")
   } catch (error) {}
 };
+
+
+export const refetchAccountWallet = async (req, res) => {
+  try {
+    const accounts = await accountModel.find();
+    console.log("TASK STARTED");
+
+    res.status(200).json({
+      success: true,
+      message: "Wallet fetching started please wait for some time",
+    });
+
+    const queue = new PQueue({
+      concurrency: Math.floor(accounts?.length),
+    }); // Send all request at once
+
+    await Promise.all(
+      accounts?.map((account) => {
+        queue.add(async () => {
+          try {
+            const client_id = account?.loginUrl?.split("/")[3];
+
+            // Send batch API request
+            const { data } = await axios.post(
+              `${process.env.WATI_API_URL}/${client_id}/api/v1/payment/getCredit`,
+              { domain: account?.loginUrl?.replace("/login", "") },
+              { headers: { Authorization: `Bearer ${account?.token}` } }
+            );
+
+            console.log(
+              "WALLET_DATA: ",
+              `${account?.username} : ${data?.creditCustomer?.credit}`
+            );
+            if (data?.creditCustomer) {
+              await accountModel.findOneAndUpdate(
+                { _id: account?._id },
+                {
+                  wallet: data?.creditCustomer?.credit,
+                }
+              );
+            }
+          } catch (error) {
+            console.log("first", error);
+          }
+        });
+      })
+    );
+
+    await queue.onIdle();
+
+    console.log("REFETCHING_COMPLETED");
+  } catch (error) {
+    console.error("Account status fetch error: ", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to refetch accounts status",
+      error: error.message,
+    });
+  }
+};
