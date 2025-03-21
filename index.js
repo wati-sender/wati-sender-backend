@@ -11,7 +11,7 @@ import StatisticsRoutes from "./routes/statistics.js";
 import ReportsRoutes from "./routes/reports.js";
 import MediaRoutes from "./routes/mediaRoutes.js";
 import cron from "node-cron";
-import { refetchAccountStatus } from "./controllers/account.js";
+import { refetchAccountStatus, refetchAccountWallet } from "./controllers/account.js";
 
 dotenv.config();
 
@@ -21,14 +21,15 @@ app.use(express.json({ limit: "50mb" }));
 
 connectToDB();
 
-// Cron job to fetch account status every 30 minutes
-cron.schedule("*/30 * * * *", () => {
+// Cron job to fetch account status AND WALLET every 15 minutes
+cron.schedule("*/15 * * * *", () => {
   console.log("Running task every 30 minutes:", new Date().toLocaleTimeString());
   refetchAccountStatus();
+  refetchAccountWallet();
 });
 
-app.get("/api", (req, res) => {
-  res.send("WATISENDER API WORKING PROPERLY✔️");
+app.get("/", (req, res) => {
+  res.send("Hello World!");
 });
 
 app.use("/api/auth", AuthRoutes);
