@@ -11,10 +11,13 @@ const accountSchema = new mongoose.Schema(
       required: true,
     },
     status: {
-      type:String,
+      type: String,
     },
     qualityRating: {
-      type:String,
+      type: String,
+    },
+    wallet: {
+      type: Number,
     },
     username: {
       type: String,
