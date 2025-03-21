@@ -235,18 +235,7 @@ export const deleteMultipleAccounts = async (req, res) => {
 export const refetchAccountStatus = async (req, res) => {
   try {
     const accounts = await accountModel.find();
-    // const client_id = account?.loginUrl?.split("/")[3];
     console.log("TASK STARTED")
-    // const response = await axios.post(
-    //   `${process.env.WATI_API_URL}/${client_id}/api/v2/sendTemplateMessages`,
-    //   payload,
-    //   { headers: { Authorization: `Bearer ${account?.token}` } }
-    // );
-
-    res.status(200).json({
-      success: true,
-      message: "Account status fetching started please wait for some time",
-    });
 
     const queue = new PQueue({
       concurrency: Math.floor(accounts?.length),
@@ -287,7 +276,9 @@ export const refetchAccountStatus = async (req, res) => {
     await queue.onIdle();
 
     console.log("REFETCHING_COMPLETED")
-  } catch (error) {}
+  } catch (error) {
+    console.log("ACCOUNT_STATUS_FETCHING_ERROR: ", error);
+  }
 };
 
 
@@ -295,11 +286,6 @@ export const refetchAccountWallet = async (req, res) => {
   try {
     const accounts = await accountModel.find();
     console.log("TASK STARTED");
-
-    res.status(200).json({
-      success: true,
-      message: "Wallet fetching started please wait for some time",
-    });
 
     const queue = new PQueue({
       concurrency: Math.floor(accounts?.length),
@@ -342,10 +328,5 @@ export const refetchAccountWallet = async (req, res) => {
     console.log("REFETCHING_COMPLETED");
   } catch (error) {
     console.error("Account status fetch error: ", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to refetch accounts status",
-      error: error.message,
-    });
   }
 };
