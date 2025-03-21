@@ -138,7 +138,7 @@ export const getAllAccounts = async (req, res) => {
       .find(filter)
       .limit(limit)
       .skip(limit * page)
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 }).select("-token");
 
     console.log("FILTERS: ", filter);
     console.log(
