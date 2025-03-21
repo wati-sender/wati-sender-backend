@@ -5,6 +5,7 @@ import {
   deleteSingleAccount,
   getAllAccounts,
   refetchAccountStatus,
+  refetchAccountWallet,
 } from "../controllers/account.js";
 import { getAccountIds } from "../controllers/idsControllers.js";
 
@@ -16,4 +17,5 @@ AccountRoutes.post("/delete/single", deleteSingleAccount);
 AccountRoutes.post("/delete/multiple", deleteMultipleAccounts);
 AccountRoutes.get("/all/ids", getAccountIds);
 AccountRoutes.get("/status/refetch", refetchAccountStatus);
+AccountRoutes.get("/wallet/refetch", refetchAccountWallet);
 export default AccountRoutes;
