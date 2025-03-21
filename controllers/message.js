@@ -256,7 +256,7 @@ export const getCampaignByID = async (req, res) => {
         username: acc?.username,
         password: acc?.password,
         loginUrl: acc?.loginUrl,
-
+        status: acc?.status,
         createdAt: "2025-03-08T12:46:56.842Z",
         updatedAt: "2025-03-08T12:46:56.842Z",
       })),
