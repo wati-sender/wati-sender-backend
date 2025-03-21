@@ -10,6 +10,12 @@ const accountSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    status: {
+      type:String,
+    },
+    qualityRating: {
+      type:String,
+    },
     username: {
       type: String,
       required: true,
