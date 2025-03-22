@@ -263,6 +263,7 @@ export const refetchAccountStatus = async (req, res) => {
                 {
                   status: response?.data?.wabaStates?.status,
                   qualityRating: response?.data?.wabaStates?.qualityRating,
+                  messageTier: response?.data?.wabaStates?.messagingLimitTier
                 }
               );
             }
