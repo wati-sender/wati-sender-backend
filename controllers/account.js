@@ -99,8 +99,8 @@ export const getAllAccounts = async (req, res) => {
       page = 0,
       search = "",
       tier = "",
-      wlt,
-      wgt
+      wallet_min,
+      wallet_max,
     } = req.query;
 
     let filter = {};
@@ -145,6 +145,18 @@ export const getAllAccounts = async (req, res) => {
       }
     }
 
+    // Wallet balance filtering
+    if (wallet_min !== undefined && wallet_max !== undefined) {
+      // Both wallet_min and wallet_max are provided
+      filter.wallet = { $gte: Number(wallet_min), $lte: Number(wallet_max) };
+    } else if (wallet_min !== undefined) {
+      // Only wallet_min is provided (greater than or equal to)
+      filter.wallet = { $gte: Number(wallet_min) };
+    } else if (wallet_max !== undefined) {
+      // Only wallet_max is provided (less than or equal to)
+      filter.wallet = { $lte: Number(wallet_max) };
+    }
+
     const allAccounts = await accountModel
       .find(filter)
       .limit(limit)
@@ -160,7 +172,14 @@ export const getAllAccounts = async (req, res) => {
 
     let totalCount;
 
-    if (search || account_status || quality_rating || tier) {
+    if (
+      search ||
+      account_status ||
+      quality_rating ||
+      tier ||
+      wallet_min ||
+      wallet_max
+    ) {
       totalCount = await accountModel.countDocuments(filter);
     } else {
       totalCount = await accountModel.countDocuments();
