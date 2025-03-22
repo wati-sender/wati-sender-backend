@@ -98,6 +98,9 @@ export const getAllAccounts = async (req, res) => {
       limit = 10,
       page = 0,
       search = "",
+      tier = "",
+      wlt,
+      wgt
     } = req.query;
 
     let filter = {};
@@ -134,11 +137,20 @@ export const getAllAccounts = async (req, res) => {
       }
     }
 
+    // Filter based tier
+    if (tier) {
+      const tiers = tier.split("-");
+      if (tiers?.length > 0) {
+        filter.messageTier = { $in: tiers };
+      }
+    }
+
     const allAccounts = await accountModel
       .find(filter)
       .limit(limit)
       .skip(limit * page)
-      .sort({ createdAt: -1 }).select("-token");
+      .sort({ createdAt: -1 })
+      .select("-token");
 
     console.log("FILTERS: ", filter);
     console.log(
@@ -148,7 +160,7 @@ export const getAllAccounts = async (req, res) => {
 
     let totalCount;
 
-    if (search || account_status || quality_rating) {
+    if (search || account_status || quality_rating || tier) {
       totalCount = await accountModel.countDocuments(filter);
     } else {
       totalCount = await accountModel.countDocuments();
@@ -231,11 +243,10 @@ export const deleteMultipleAccounts = async (req, res) => {
   }
 };
 
-
 export const refetchAccountStatus = async (req, res) => {
   try {
     const accounts = await accountModel.find();
-    console.log("TASK STARTED")
+    console.log("TASK STARTED");
 
     const queue = new PQueue({
       concurrency: Math.floor(accounts?.length),
@@ -263,7 +274,7 @@ export const refetchAccountStatus = async (req, res) => {
                 {
                   status: response?.data?.wabaStates?.status,
                   qualityRating: response?.data?.wabaStates?.qualityRating,
-                  messageTier: response?.data?.wabaStates?.messagingLimitTier
+                  messageTier: response?.data?.wabaStates?.messagingLimitTier,
                 }
               );
             }
@@ -276,12 +287,11 @@ export const refetchAccountStatus = async (req, res) => {
 
     await queue.onIdle();
 
-    console.log("REFETCHING_COMPLETED")
+    console.log("REFETCHING_COMPLETED");
   } catch (error) {
     console.log("ACCOUNT_STATUS_FETCHING_ERROR: ", error);
   }
 };
-
 
 export const refetchAccountWallet = async (req, res) => {
   try {
