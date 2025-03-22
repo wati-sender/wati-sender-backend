@@ -4,7 +4,14 @@ import { escapeRegExpChars } from "../utils/common.js";
 
 export const getAccountIds = async (req, res) => {
   try {
-    const { account_status = "", quality_rating = "", search = "" } = req.query;
+    const {
+      account_status = "",
+      quality_rating = "",
+      search = "",
+      tier = "",
+      wallet_min,
+      wallet_max,
+    } = req.query;
 
     let filter = {};
 
@@ -40,6 +47,26 @@ export const getAccountIds = async (req, res) => {
       if (qualityFilter.length > 0) {
         filter.qualityRating = { $in: qualityFilter }; // 'qualityRating' can be an array like ["GREEN", "RED"]
       }
+    }
+
+    // Filter based tier
+    if (tier) {
+      const tiers = tier.split("-");
+      if (tiers?.length > 0) {
+        filter.messageTier = { $in: tiers };
+      }
+    }
+
+    // Wallet balance filtering
+    if (wallet_min !== undefined && wallet_max !== undefined) {
+      // Both wallet_min and wallet_max are provided
+      filter.wallet = { $gte: Number(wallet_min), $lte: Number(wallet_max) };
+    } else if (wallet_min !== undefined) {
+      // Only wallet_min is provided (greater than or equal to)
+      filter.wallet = { $gte: Number(wallet_min) };
+    } else if (wallet_max !== undefined) {
+      // Only wallet_max is provided (less than or equal to)
+      filter.wallet = { $lte: Number(wallet_max) };
     }
 
     // Fetch only the IDs of the accounts
