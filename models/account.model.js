@@ -31,6 +31,10 @@ const accountSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    messageTier: {
+      type: String,
+      required: false,
+    },
     token: {
       type: String,
       required: true,
