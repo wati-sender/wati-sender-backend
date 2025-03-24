@@ -19,6 +19,9 @@ const accountSchema = new mongoose.Schema(
     wallet: {
       type: Number,
     },
+    currency: {
+      type: String,
+    },
     username: {
       type: String,
       required: true,
