@@ -218,7 +218,6 @@ export const getCampaignByID = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
 // Get campaign statistics for particular account
 export const getCampaignReportByAccount = async (req, res) => {
   try {
@@ -299,10 +298,18 @@ export const getCampaignReportByAccount = async (req, res) => {
           },
         });
       } else {
-        return res.status(`${campaign?.name} campaign not found in WATI`);
+        return res.status(404).json({
+          success: false,
+          message: `${campaign?.name} campaign not found in WATI`,
+        });
       }
     } else {
-      return res.status(`Failed to get ${campaign?.name} from WATI`);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: `Failed to get ${campaign?.name} from WATI`,
+        });
     }
   } catch (error) {
     console.log("Campaign account report error: ", error.message);
