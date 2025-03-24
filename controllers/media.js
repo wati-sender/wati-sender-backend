@@ -15,7 +15,7 @@ export const uploadMedia = async (req, res) => {
     // Upload to Cloudinary
     const cloudinary_resp = await cloudinary.uploader.upload(base64String, {
       folder: "/watisender",
-      resource_type: req.body.type,
+      resource_type: file.mimetype?.startsWith("video") ? "video" : "image",
     });
 
     const newMedia = new mediaModel({
