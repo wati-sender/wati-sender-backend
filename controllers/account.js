@@ -343,6 +343,7 @@ export const refetchAccountWallet = async (req, res) => {
                 { _id: account?._id },
                 {
                   wallet: data?.creditCustomer?.credit,
+                  currency: data?.creditCustomer?.currency
                 }
               );
             }
