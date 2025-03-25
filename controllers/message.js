@@ -211,13 +211,14 @@ export const getCampaignByID = async (req, res) => {
     };
     return res.status(200).json({
       success: true,
-      campaign: campaignResp
+      campaign: campaignResp,
     });
   } catch (error) {
     console.log("Get all campaign report error: ", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 // Get campaign statistics for particular account
 export const getCampaignReportByAccount = async (req, res) => {
   try {
@@ -304,15 +305,58 @@ export const getCampaignReportByAccount = async (req, res) => {
         });
       }
     } else {
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: `Failed to get ${campaign?.name} from WATI`,
-        });
+      return res.status(500).json({
+        success: false,
+        message: `Failed to get ${campaign?.name} from WATI`,
+      });
     }
   } catch (error) {
     console.log("Campaign account report error: ", error.message);
     res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+// Get campaign errors
+export const getCampaignErrors = async (req, res) => {
+  try {
+    const {
+      accountId,
+      watiCampaignId,
+      failedCount,
+      pageSize = 10,
+      pageNumber = 0,
+    } = req.body;
+
+    if (!isValidObjectId(accountId) || !isValidObjectId(watiCampaignId)) {
+      res.status(400).json({
+        success: false,
+        message: "Please provide valid accountId and watiCampaignId",
+      });
+    }
+
+    const account = await accountModel.findById(accountId);
+
+    console.log("account: ", account);
+
+    const client_id = account.loginUrl.split("/")[3];
+
+    const { data: errData } = await axios.get(
+      `${process.env.WATI_API_URL}/${client_id}/api/v1/broadcast/getBroadcastContactList/${watiCampaignId}?pageNumber=${pageNumber}&pageSize=${pageSize}&option=1&failedReason=0`,
+      { headers: { Authorization: `Bearer ${account?.token}` } }
+    );
+
+    let errors = [];
+    if (errData?.ok) {
+      errors = errData?.result?.items?.map((item) => ({
+        contactName: item?.contactName || "-",
+        contactPhone: item?.contactPhone,
+        failedDetail: item?.failedDetail,
+      }));
+    }
+
+    res.status(200).json({ success: true, total: failedCount, errors: errors });
+  } catch (error) {
+    console.log("Get all campaign errors error: ", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
