@@ -317,14 +317,15 @@ export const getCampaignReportByAccount = async (req, res) => {
 };
 
 // Get campaign errors
-export const getCampaignErrors = async (req, res) => {
+export const getCampaignStats = async (req, res) => {
   try {
     const {
       accountId,
       watiCampaignId,
-      failedCount,
       pageSize = 10,
       pageNumber = 0,
+      option = 1,
+      failedReason = 0,
     } = req.body;
 
     if (!isValidObjectId(accountId) || !isValidObjectId(watiCampaignId)) {
@@ -340,21 +341,21 @@ export const getCampaignErrors = async (req, res) => {
 
     const client_id = account.loginUrl.split("/")[3];
 
-    const { data: errData } = await axios.get(
-      `${process.env.WATI_API_URL}/${client_id}/api/v1/broadcast/getBroadcastContactList/${watiCampaignId}?pageNumber=${pageNumber}&pageSize=${pageSize}&option=1&failedReason=0`,
+    const { data } = await axios.get(
+      `${process.env.WATI_API_URL}/${client_id}/api/v1/broadcast/getBroadcastContactList/${watiCampaignId}?pageNumber=${pageNumber}&pageSize=${pageSize}&option=${option}&failedReason=${failedReason}`,
       { headers: { Authorization: `Bearer ${account?.token}` } }
     );
 
-    let errors = [];
-    if (errData?.ok) {
-      errors = errData?.result?.items?.map((item) => ({
-        contactName: item?.contactName || "-",
-        contactPhone: item?.contactPhone,
-        failedDetail: item?.failedDetail,
-      }));
+    if (data?.ok) {
+      return res
+        .status(200)
+        .json({ success: true, data: data });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Failed to get campaign statistics.",
+      });
     }
-
-    res.status(200).json({ success: true, total: failedCount, errors: errors });
   } catch (error) {
     console.log("Get all campaign errors error: ", error);
     res.status(500).json({ message: "Internal server error" });
