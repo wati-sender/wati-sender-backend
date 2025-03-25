@@ -316,6 +316,24 @@ export const getCampaignReportByAccount = async (req, res) => {
   }
 };
 
+/*
+Options
+0 - All
+1 - Failed
+2 - Read
+3 - Replied
+4 - Ignored
+5 - Clicked
+
+FailedReasons
+0 - All
+1 - Message undeliverable
+2 - Meta restriction (frequency cap)
+3 - Invalid template
+4 - System related errors
+6 - Opted out of marketing messages
+*/
+
 // Get campaign errors
 export const getCampaignStats = async (req, res) => {
   try {
@@ -347,9 +365,7 @@ export const getCampaignStats = async (req, res) => {
     );
 
     if (data?.ok) {
-      return res
-        .status(200)
-        .json({ success: true, data: data });
+      return res.status(200).json({ success: true, data: data });
     } else {
       return res.status(400).json({
         success: false,
