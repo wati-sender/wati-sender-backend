@@ -13,7 +13,9 @@ export const getAccountIds = async (req, res) => {
       wallet_max,
     } = req.query;
 
-    let filter = {};
+    const { userId } = req;
+
+    let filter = { userId };
 
     // Handle search filter
     if (search) {
@@ -93,8 +95,8 @@ export const getAccountIds = async (req, res) => {
 export const getAllBulkTemplateCreateReportIDS = async (req, res) => {
   try {
     const { search = "" } = req.query;
-
-    let filter = {};
+    const { userId } = req;
+    let filter = { userId };
 
     // Handle search filter
     if (search) {
