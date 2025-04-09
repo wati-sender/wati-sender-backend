@@ -15,7 +15,12 @@ const templatesReportSchema = new mongoose.Schema(
     },
     totalAccounts: {
       type: Number,
-    }
+    },
+    userId: {
+      type: mongoose.Schema.ObjectId,
+      required: true,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );
