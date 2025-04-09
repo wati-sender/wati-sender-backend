@@ -5,7 +5,7 @@ import mediaModel from "../models/media.model.js";
 // Upload media to cloudinary
 export const uploadMedia = async (req, res) => {
   try {
-    const { file } = req;
+    const { file, userId } = req;
 
     // Convert buffer to base64 string and prepend the appropriate mime type
     const base64String = `data:${file.mimetype};base64,${file.buffer.toString(
@@ -22,6 +22,7 @@ export const uploadMedia = async (req, res) => {
       url: cloudinary_resp?.url,
       resource_type: cloudinary_resp?.resource_type,
       public_id: cloudinary_resp?.public_id,
+      userId,
     });
 
     await newMedia.save();
@@ -44,7 +45,8 @@ export const uploadMedia = async (req, res) => {
 // Get all media
 export const getAllMedia = async (req, res) => {
   try {
-    const media = await mediaModel.find().sort({ createdAt: -1 });
+    const { userId } = req;
+    const media = await mediaModel.find({ userId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: media });
   } catch (error) {
     console.log("Media get error: ", error);
@@ -55,6 +57,7 @@ export const getAllMedia = async (req, res) => {
 export const deleteMedia = async (req, res) => {
   try {
     const { media_id } = req.body;
+    const { userId } = req;
 
     if (!isValidObjectId(media_id)) {
       return res
@@ -62,7 +65,7 @@ export const deleteMedia = async (req, res) => {
         .json({ success: false, message: "Media ID is not valid" });
     }
     // Permanently delete the account
-    const media = await mediaModel.findById(media_id);
+    const media = await mediaModel.findOne({ _id: media_id, userId });
 
     if (!media) {
       return res
@@ -71,7 +74,7 @@ export const deleteMedia = async (req, res) => {
     }
 
     const cloudinary_resp = await cloudinary.uploader.destroy(media?.public_id);
-    console.log("DELETE RESPONSE: ", cloudinary_resp); 
+    console.log("DELETE RESPONSE: ", cloudinary_resp);
 
     // Check if deletion was successful
     if (cloudinary_resp.result === "ok") {
