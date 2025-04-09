@@ -8,14 +8,23 @@ import {
   submitTemplateForReview,
   deleteSingleTemplate,
 } from "../controllers/template.js";
+import { protectRequest } from "../middlewares/auth.middleware.js";
 
 const TemplateRoutes = express.Router();
 
-TemplateRoutes.post("/create", createTemplate);
-TemplateRoutes.post("/create/bulk", createTemplateInAllAccounts);
-TemplateRoutes.get("/all", getAllTemplates);
-TemplateRoutes.post("/check/review/status",getTemplateReviewStatus);
-TemplateRoutes.get("/:templateId",templateById);
-TemplateRoutes.post("/review/submit",submitTemplateForReview);
-TemplateRoutes.post("/delete/single", deleteSingleTemplate)
+TemplateRoutes.post("/create", protectRequest, createTemplate);
+TemplateRoutes.post(
+  "/create/bulk",
+  protectRequest,
+  createTemplateInAllAccounts
+);
+TemplateRoutes.get("/all", protectRequest, getAllTemplates);
+TemplateRoutes.post(
+  "/check/review/status",
+  protectRequest,
+  getTemplateReviewStatus
+);
+TemplateRoutes.get("/:templateId", protectRequest, templateById);
+TemplateRoutes.post("/review/submit", protectRequest, submitTemplateForReview);
+TemplateRoutes.post("/delete/single", protectRequest, deleteSingleTemplate);
 export default TemplateRoutes;
