@@ -7,6 +7,8 @@ import axios from "axios";
 
 export const addBulkAccounts = async (req, res) => {
   try {
+    const { userId } = req;
+
     const { accounts } = req.body;
     const insertedUsernames = [];
     const failedUserNames = [];
@@ -29,6 +31,7 @@ export const addBulkAccounts = async (req, res) => {
       const existingAccount = await accountModel.findOne({
         username,
         loginUrl,
+        userId,
       }); //   If not exist add new contact
       console.log("Existing Account: ", existingAccount);
       try {
@@ -44,6 +47,7 @@ export const addBulkAccounts = async (req, res) => {
               password,
               loginUrl,
               token: token || null,
+              userId,
             });
 
             await newAccount.save();
@@ -69,6 +73,7 @@ export const addBulkAccounts = async (req, res) => {
       inserted: insertedUsernames,
       exist: existUserNames,
       failed: failedUserNames,
+      userId,
     });
 
     // Save account report
@@ -103,7 +108,9 @@ export const getAllAccounts = async (req, res) => {
       wallet_max,
     } = req.query;
 
-    let filter = {};
+    const { userId } = req;
+
+    let filter = { userId };
 
     if (search) {
       filter.$or = [
@@ -182,7 +189,7 @@ export const getAllAccounts = async (req, res) => {
     ) {
       totalCount = await accountModel.countDocuments(filter);
     } else {
-      totalCount = await accountModel.countDocuments();
+      totalCount = await accountModel.countDocuments({ userId });
     }
     return res.status(200).json({
       total: totalCount,
@@ -343,7 +350,7 @@ export const refetchAccountWallet = async (req, res) => {
                 { _id: account?._id },
                 {
                   wallet: data?.creditCustomer?.credit,
-                  currency: data?.creditCustomer?.currency
+                  currency: data?.creditCustomer?.currency,
                 }
               );
             }
