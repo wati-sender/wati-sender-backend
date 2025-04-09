@@ -34,6 +34,11 @@ const templateSchema = new mongoose.Schema(
       default: 0,
     },
     templateData: {},
+    userId: {
+      type: mongoose.Schema.ObjectId,
+      required: true,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );
