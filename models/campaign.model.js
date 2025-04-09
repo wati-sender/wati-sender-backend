@@ -35,6 +35,11 @@ const campaignSchema = new mongoose.Schema(
       type: [],
       default: [],
     },
+    userId: {
+      type: mongoose.Schema.ObjectId,
+      required: true,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );
