@@ -15,8 +15,13 @@ const accountsReportSchema = new mongoose.Schema(
       default: [],
     },
     total: {
-        type: Number,
-    }
+      type: Number,
+    },
+    userId: {
+      type: mongoose.Schema.ObjectId,
+      required: true,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );
