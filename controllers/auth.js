@@ -1,28 +1,85 @@
 import axios from "axios";
 import jwt from "jsonwebtoken";
+import userModel from "../models/user.model.js";
+import dotenv from "dotenv";
+import Cryptr from "cryptr";
+dotenv.config();
+console.log(process.env.CRYPTR_SECRET);
+const cryptr = new Cryptr(process.env.CRYPTR_SECRET);
 
 // Controller to login user
 export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    if (
-      username === process.env.APP_USERNAME &&
-      password === process.env.APP_PASSWORD
-    ) {
-      // Generating token to storing in cooke for next time
-      const token = jwt.sign(
-        { user_name: "largemedia" },
-        process.env.JWT_SECRET,
-        { expiresIn: "3d" }
-      );
-      return res.status(200).json({ success: true, token });
-    } else {
+    if (!username || !password) {
       return res
         .status(400)
-        .json({ success: false, message: "Incorrect Credentials!☹️" });
+        .json({ success: false, message: "Username and Password is required" });
+    }
+
+    const user = await userModel.findOne({ username });
+
+    if (!user)
+      return res.status(404).json({
+        success: false,
+        message: "User not found with given username",
+      });
+
+    const userPassword = user.password;
+    const decryptedPassword = cryptr.decrypt(userPassword);
+
+    if (decryptedPassword !== password)
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect password",
+      });
+
+    const token = jwt.sign({ _id: user?._id }, process.env.JWT_SECRET, {
+      expiresIn: "3d",
+    });
+
+    return res.status(200).json({ success: true, token });
+  } catch (error) {
+    res.status(400).json({ error: "Failed to login" });
+  }
+};
+
+// Signup controller
+// Controller to login user
+export const signUp = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username)
+      return res.status(400).json({
+        success: false,
+        message: "Username is required",
+      });
+
+    if (!password || password.length < 5)
+      return res.status(400).json({
+        success: false,
+        message: "Password length must be greater than or equal to 5",
+      });
+
+    const existingUser = await userModel.findOne({ username });
+
+    if (!existingUser) {
+      const hashedPassword = cryptr.encrypt(password);
+      const newUser = new userModel({ username, password: hashedPassword });
+      await newUser.save();
+      return res
+        .status(200)
+        .json({ success: true, message: "Signup successfully" });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "User already exist with this username",
+      });
     }
   } catch (error) {
+    console.log(error);
     res.status(400).json({ error: "Failed to login" });
   }
 };
@@ -32,14 +89,19 @@ export const verifyUser = async (req, res) => {
   try {
     const token = req?.headers?.authorization?.split(" ")[1];
 
-    const result = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (result.user_name === process.env.APP_USERNAME) {
-      return res.status(200).json({
-        success: true,
-        message: "User is authorized",
-      });
+    const user = await userModel.findOne({ _id: decoded._id });
+    if (!user) {
+      return res
+        .status(401)
+        .json({ success: false, message: "User not found." });
     }
+
+    return res.status(200).json({
+      success: true,
+      message: "User is authorized",
+    });
   } catch (error) {
     console.log(error);
     res.status(401).json({ success: false, message: "Unauthorized!" });
