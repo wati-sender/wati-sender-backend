@@ -5,8 +5,9 @@ import templatesReportsModel from "../models/templatesReports.model.js";
 export const getAllBulkTemplateCreateReport = async (req, res) => {
   try {
     const { limit, page, search = "" } = req.query;
+    const { userId } = req;
 
-    let filter = {};
+    let filter = { userId };
 
     if (search) {
       if (search) filter.templateName = { $regex: search, $options: "i" }; // Partial match, case-insensitive
@@ -41,6 +42,7 @@ export const getAllBulkTemplateCreateReport = async (req, res) => {
 export const getTemplateBulkCreateReport = async (req, res) => {
   try {
     const { reportId } = req.params;
+    const { userId } = req;
     console.log("reportId: ", reportId);
 
     if (!reportId)
@@ -49,7 +51,10 @@ export const getTemplateBulkCreateReport = async (req, res) => {
     if (!isValidObjectId(reportId))
       return res.json({ success: false, message: "Given ID is not valid" });
 
-    const report = await templatesReportsModel.findById(reportId);
+    const report = await templatesReportsModel.findOne({
+      _id: reportId,
+      userId,
+    });
 
     // If report not found
     if (!report)
