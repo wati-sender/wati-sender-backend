@@ -14,6 +14,7 @@ export const sendBulkMessages = async (req, res) => {
   try {
     const { template_name, account_ids, broadcast_name, receivers } = req.body;
     // Example Usage:
+    const { userId } = req;
 
     if (!template_name || !broadcast_name)
       return res
@@ -28,13 +29,16 @@ export const sendBulkMessages = async (req, res) => {
       return res.status(400).send("Account ids and receivers are required");
 
     // If broadcast name already exist throw an error.
-    const campaign = await campaignModel.findOne({ name: broadcast_name });
+    const campaign = await campaignModel.findOne({
+      name: broadcast_name,
+      userId,
+    });
     if (campaign) {
       return res.status(400).send("Campaign with given name already exist.");
     }
 
     const allAccounts = await accountModel
-      .find({ _id: { $in: account_ids } })
+      .find({ _id: { $in: account_ids }, userId })
       .select("+token"); // Accounts filtered by account ids
 
     if (!allAccounts.length) {
@@ -117,6 +121,7 @@ export const sendBulkMessages = async (req, res) => {
       selectedAccounts: allAccounts?.map((acc) => acc?._id),
       selectedTemplateName: template_name,
       errors,
+      userId,
     });
 
     await newCampaign.save();
@@ -130,8 +135,9 @@ export const sendBulkMessages = async (req, res) => {
 export const getAllCampaigns = async (req, res) => {
   try {
     const { limit, page, search = "" } = req.query;
+    const { userId } = req;
 
-    const filter = {};
+    const filter = { userId };
     if (search) {
       // filter.name = { $regex: search, $options: "i" };
 
@@ -165,7 +171,7 @@ export const getAllCampaigns = async (req, res) => {
     if (search) {
       totalCount = campaigns?.length;
     } else {
-      totalCount = await campaignModel.countDocuments();
+      totalCount = await campaignModel.countDocuments({ userId });
     }
     return res
       .status(200)
@@ -179,9 +185,10 @@ export const getAllCampaigns = async (req, res) => {
 // Get campaign by id
 export const getCampaignByID = async (req, res) => {
   try {
+    const { userId } = req;
     const { campaignId } = req.params;
     const campaign = await campaignModel
-      .findById(campaignId)
+      .findOne({ _id: campaignId, userId })
       .sort({ createdAt: -1 })
       .populate("selectedAccounts");
 
@@ -222,6 +229,7 @@ export const getCampaignByID = async (req, res) => {
 // Get campaign statistics for particular account
 export const getCampaignReportByAccount = async (req, res) => {
   try {
+    const { userId } = req;
     const { campaignId, accountId } = req.body;
     if (
       !campaignId ||
@@ -235,7 +243,7 @@ export const getCampaignReportByAccount = async (req, res) => {
       });
     }
 
-    const campaign = await campaignModel.findById(campaignId);
+    const campaign = await campaignModel.findOne({ _id: campaignId, userId });
 
     if (!campaign) {
       return res
@@ -243,7 +251,7 @@ export const getCampaignReportByAccount = async (req, res) => {
         .json({ success: false, message: "Campaign not found with given ID" });
     }
 
-    const account = await accountModel.findById(accountId);
+    const account = await accountModel.findOne({ _id: accountId, userId });
 
     const client_id = account?.loginUrl.split("/")[3];
 
@@ -346,6 +354,8 @@ export const getCampaignStats = async (req, res) => {
       failedReason = 0,
     } = req.body;
 
+    const { userId } = req;
+
     if (!isValidObjectId(accountId) || !isValidObjectId(watiCampaignId)) {
       res.status(400).json({
         success: false,
@@ -353,7 +363,7 @@ export const getCampaignStats = async (req, res) => {
       });
     }
 
-    const account = await accountModel.findById(accountId);
+    const account = await accountModel.findOne({ _id: accountId, userId });
 
     console.log("account: ", account);
 
