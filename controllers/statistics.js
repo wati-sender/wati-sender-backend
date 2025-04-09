@@ -14,12 +14,14 @@ export const getStatistics = async (req, res) => {
       pageNumber = 0,
     } = req.body;
 
+    const { userId } = req;
+
     if (!username) return res.status(400).send("Username is required");
     if (!dateFrom) return res.status(400).send("From date is required");
     if (!dateTo) return res.status(400).send("To date is required");
     if (!dateFrom) return res.status(400).send("From date is required");
 
-    const user = await accountModel.findOne({ username });
+    const user = await accountModel.findOne({ username, userId });
     // res.status(200).json({ User: user });
 
     const client_id = user.loginUrl.split("/")[3];
