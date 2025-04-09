@@ -23,7 +23,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 connectToDB();
 
 // Cron job to fetch account status AND WALLET every 15 minutes
-cron.schedule("*/15 * * * *", () => {
+cron.schedule("*/30 * * * *", () => {
   console.log("Running task every 30 minutes:", new Date().toLocaleTimeString());
   refetchAccountStatus();
   refetchAccountWallet();
