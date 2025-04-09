@@ -81,8 +81,9 @@ export const createTemplate = async (req, res) => {
 export const getAllTemplates = async (req, res) => {
   try {
     const { limit, page, search = "" } = req.query;
+    const { userId } = req;
 
-    let filter = {};
+    let filter = { userId };
 
     if (search) filter.name = { $regex: search, $options: "i" }; // Partial match, case-insensitive
 
@@ -98,7 +99,7 @@ export const getAllTemplates = async (req, res) => {
     if (search) {
       totalCount = templates?.length;
     } else {
-      totalCount = await templateModel.countDocuments();
+      totalCount = await templateModel.countDocuments({ userId });
     }
 
     return res.status(200).json({
@@ -153,6 +154,8 @@ export const createTemplateInAllAccounts = async (req, res) => {
       template: templateData,
     } = req.body;
 
+    const { userId } = req;
+
     // Template name validation
     if (!/^[a-z0-9_]+$/.test(templateData?.elementName))
       return res
@@ -175,6 +178,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
     // If template in our db is present
     const isExist = await templateModel.findOne({
       name: templateData?.elementName,
+      userId,
     });
 
     if (isExist) {
@@ -184,7 +188,10 @@ export const createTemplateInAllAccounts = async (req, res) => {
       });
     }
 
-    const allAccounts = await accountModel.find().sort({ createdAt: -1 });
+    const allAccounts = await accountModel
+      .find({ userId })
+      .sort({ createdAt: -1 });
+
     const accounts = allAccounts?.filter(
       (_, i) => i >= startAccountIndex - 1 && i <= endAccountIndex - 1
     );
@@ -203,8 +210,6 @@ export const createTemplateInAllAccounts = async (req, res) => {
     // Counters for success, failures, and review
     const createSuccessUserNames = [];
     const createFailedUserNames = [];
-    const reviewSuccessTempUsernames = [];
-    const reviewFailUserNames = [];
 
     console.log("Selected accounts: ", accounts);
     console.log("Queue started");
@@ -272,7 +277,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
                   );
 
                   await accountModel.findOneAndUpdate(
-                    { _id: account?._id },
+                    { _id: account?._id, userId },
                     { token: token }
                   );
                 }
@@ -291,6 +296,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
                   accountId: account?._id,
                   watiTemplateId: response?.data?.result?.id,
                   templateName: templateData?.elementName,
+                  userId,
                 });
 
                 await newTempEntry.save();
@@ -327,6 +333,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
       totalAccounts: accounts?.length,
       success: createSuccessUserNames,
       failed: createFailedUserNames,
+      userId,
     });
 
     // New template entry.
@@ -336,6 +343,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
       failedCount: createFailedUserNames?.length,
       successCount: createSuccessUserNames?.length,
       templateData,
+      userId,
     });
 
     await template.save();
@@ -361,6 +369,7 @@ export const createTemplateInAllAccounts = async (req, res) => {
 export const getTemplateReviewStatus = async (req, res) => {
   try {
     const { reportId } = req.body;
+    const { userId } = req;
 
     if (!reportId)
       return res.json({ success: false, message: "Please provide reportId" });
@@ -369,7 +378,10 @@ export const getTemplateReviewStatus = async (req, res) => {
       return res.json({ success: false, message: "Given ID is not valid" });
 
     // Need usernames to get status in that account.
-    const report = await templatesReportsModel.findById(reportId);
+    const report = await templatesReportsModel.findOne({
+      _id: reportId,
+      userId,
+    });
 
     if (!report) {
       return res.json({
@@ -382,7 +394,10 @@ export const getTemplateReviewStatus = async (req, res) => {
     const usernames = [...report.success, ...report.failed];
 
     // Get account from DB to get token of that account.
-    const accounts = await accountModel.find({ username: { $in: usernames } });
+    const accounts = await accountModel.find({
+      username: { $in: usernames },
+      userId,
+    });
 
     // Status result
     const result = [];
@@ -544,6 +559,7 @@ export const templateById = async (req, res) => {
 export const submitTemplateForReview = async (req, res) => {
   try {
     const { template_name } = req.body;
+    const { userId } = req;
 
     if (!template_name)
       return res.json({
@@ -551,7 +567,10 @@ export const submitTemplateForReview = async (req, res) => {
         message: "Please enter template_name",
       });
 
-    const template = await templateModel.findOne({ name: template_name });
+    const template = await templateModel.findOne({
+      name: template_name,
+      userId,
+    });
 
     let sentSuccess = 0;
     let sentFail = 0;
@@ -565,6 +584,7 @@ export const submitTemplateForReview = async (req, res) => {
     // Getting wati template ids to send for review
     const watiIds = await watiTemplatesIdsModel.find({
       templateName: template_name,
+      userId,
     });
 
     res.json({
@@ -611,7 +631,7 @@ export const submitTemplateForReview = async (req, res) => {
     await queue.onIdle();
 
     const updatedTemplate = await templateModel.findOneAndUpdate(
-      { name: template_name },
+      { name: template_name, userId },
       {
         submittedForReview: sentSuccess === watiIds.length,
         reviewSentSuccess: sentSuccess,
@@ -630,6 +650,7 @@ export const submitTemplateForReview = async (req, res) => {
 export const deleteSingleTemplate = async (req, res) => {
   try {
     const { templateId } = req.body;
+    const { userId } = req;
 
     if (!templateId) {
       return res
@@ -676,10 +697,12 @@ export const deleteSingleTemplate = async (req, res) => {
 
     const watiTempIdDeleteFromDB = await watiTemplatesIdsModel.deleteMany({
       templateName: deletedTemplate?.name,
+      userId,
     });
 
     const templateReportDelete = await templatesReportsModel.deleteMany({
       templateName: deletedTemplate?.name,
+      userId,
     });
 
     res.status(200).json({
