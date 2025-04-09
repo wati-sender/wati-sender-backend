@@ -5,7 +5,10 @@ import accountModel from "../models/account.model.js";
 // To get all import reports
 export const getAllAccountImportReports = async (req, res) => {
   try {
-    const reports = await accountsReportModel.find().sort({ createdAt: -1 });
+    const { userId } = req;
+    const reports = await accountsReportModel
+      .find({ userId })
+      .sort({ createdAt: -1 });
     return res
       .status(200)
       .json({ success: true, total: reports?.length, reports });
@@ -22,6 +25,7 @@ export const getAllAccountImportReports = async (req, res) => {
 // Get account import reports by id
 export const getAccountImportReports = async (req, res) => {
   try {
+    const { userId } = req;
     const { importId } = req.params;
     console.log("Import id: ", importId);
 
@@ -31,7 +35,7 @@ export const getAccountImportReports = async (req, res) => {
     if (!isValidObjectId(importId))
       return res.json({ success: false, message: "Given ID is not valid" });
 
-    const report = await accountsReportModel.findById(importId);
+    const report = await accountsReportModel.findOne({ _id: importId, userId });
 
     // If report not found
     if (!report)
@@ -43,17 +47,20 @@ export const getAccountImportReports = async (req, res) => {
     const insertedAccountDetails = await accountModel
       .find({
         username: { $in: report.inserted },
+        userId,
       })
       .select("-token");
     const existAccountDetails = await accountModel
       .find({
         username: { $in: report.exist },
+        userId,
       })
       .select("-token");
 
     const failedAccountDetails = await accountModel
       .find({
         username: { $in: report.failed },
+        userId,
       })
       .select("-token");
 
